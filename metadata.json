@@ -1,0 +1,6 @@
+{
+  "name": "TerraSoil - Carbon & Soil-Management Tracking Portal",
+  "description": "MRV platform for regenerative agriculture, field boundary mapping, Sentinel-2 NDVI satellite monitoring, soil organic carbon (SOC) tracking, and audit-ready carbon insetting reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
