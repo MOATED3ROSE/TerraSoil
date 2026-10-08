@@ -194,8 +194,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                       : 'text-amber-400 hover:text-amber-300'
                   }`}
                 >
-                  <span>Field Verification Report ($99)</span>
-                  <span className="text-[9px] bg-amber-950 border border-amber-800 text-amber-300 px-1.5 py-0.2 rounded font-mono">P0</span>
+                  <span>Field Evidence Report ($99)</span>
+                  <span className="text-[9px] bg-amber-950 border border-amber-800 text-amber-300 px-1.5 py-0.2 rounded font-mono">Evidence</span>
                 </button>
 
                 <button
@@ -255,7 +255,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
           {/* TAB 1: CORE LADDER (5 TIERS) WITH BALANCED VISUAL HIERARCHY (§9) */}
           {activeTab === 'tiers' && (
             <div className="space-y-8">
-              {/* Renaming Alert / Rationale Callout Banner (P0) */}
+              {/* Renaming Alert / Rationale Callout Banner (PRD-17) */}
               <div className="bg-gradient-to-r from-amber-950/40 via-stone-900 to-stone-900 border border-amber-600/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <span className="p-2 rounded-xl bg-amber-950 text-amber-400 border border-amber-800 shrink-0 mt-0.5">
@@ -264,14 +264,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-amber-300 uppercase tracking-wider font-mono">
-                        P0 Terminology &amp; Packaging Update
+                        PRD-17 Scientific Claims &amp; Assurance Update
                       </span>
                       <span className="text-[10px] bg-amber-900/60 text-amber-200 px-2 py-0.5 rounded font-mono">
-                        "Audit Report" &rarr; "Field Verification Report"
+                        Deliverable: "Field Evidence Report"
                       </span>
                     </div>
                     <p className="text-xs text-stone-300 mt-1 max-w-3xl leading-relaxed">
-                      <strong>Why the renaming?</strong> "Audit" implies a formal third-party assurance service. This product is actually an <strong>audit-ready evidence package</strong> containing empirical NDVI passes, SOC depth baselines, and calculation lineage. Renamed to avoid false assurance implications while empowering external certifiers.
+                      <strong>Why "Field Evidence Report"?</strong> Even "Verification Report" implies that third-party certification has already occurred. This product provides the <strong>audit-ready evidence package</strong> (observed Sentinel-2 vegetation passes, boundary geometry, and modeled calculation lineage). Modeled outputs carry an explicit <strong>"Not independently verified"</strong> label until an accredited third-party audit occurs.
                     </p>
                   </div>
                 </div>
@@ -279,7 +279,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                   onClick={() => setActiveTab('verification_report')}
                   className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-600/40 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap"
                 >
-                  <span>View $99 Verification Package</span>
+                  <span>Explore Field Evidence Report</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -329,7 +329,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                         </li>
                         <li className="flex items-start gap-1.5">
                           <Check className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
-                          <span>Global Geographic Map (PRD-08) access</span>
+                          <span>Global Geographic Soil Map access</span>
                         </li>
                       </ul>
                     </div>
@@ -848,13 +848,13 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 bg-amber-950 border border-amber-800 px-2.5 py-0.5 rounded-full">
-                      P0 Product Repositioning
+                      PRD-17 Assurance Standard
                     </span>
                     <h3 className="text-xl sm:text-2xl font-extrabold text-stone-100 mt-1">
-                      Field Verification Report ($99 / field)
+                      Field Evidence Report ($99 / field)
                     </h3>
                     <p className="text-xs text-stone-400 mt-0.5">
-                      Formerly titled "Audit Report" &bull; Zero subscription commitment required
+                      Empirical audit-ready dossier &bull; Zero subscription commitment required
                     </p>
                   </div>
 
@@ -868,10 +868,10 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                 <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-700/60 space-y-2 text-xs">
                   <div className="flex items-center gap-2 font-bold text-amber-300">
                     <Scale className="w-4 h-4 text-amber-400" />
-                    <span>The Rationale: Why "Field Verification Report" instead of "Audit Report"?</span>
+                    <span>The Rationale: Why "Field Evidence Report" instead of "Verification Report"?</span>
                   </div>
                   <p className="text-stone-300 leading-relaxed">
-                    The term <em>"Audit"</em> legally and methodologically implies a formal third-party assurance service conducted by an accredited verification body (such as Verra, Gold Standard, or SCS Global). TerraSoil provides the <strong>audit-ready evidence package</strong> — the empirical soil measurements, Sentinel-2 vegetation passes, and calculation lineage needed by those auditors. We renamed the deliverable to <strong>Field Verification Report</strong> to eliminate confusion, avoid over-promising assurance, and accurately describe its role as the definitive evidentiary file.
+                    Even the title <em>"Verification Report"</em> legally implies that formal third-party assurance has already occurred. TerraSoil provides the <strong>audit-ready evidence package</strong> — observed field boundaries, Sentinel-2 vegetation passes, and calculation lineage needed by those verifiers. We titled the deliverable <strong>Field Evidence Report</strong> to eliminate confusion, avoid over-promising assurance, and place a prominent <strong>"Not independently verified"</strong> label on all modeled outputs until an accredited auditor conducts a formal review.
                   </p>
                 </div>
 
@@ -902,7 +902,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                       <div>
                         <div className="font-bold text-stone-100">Sentinel-2 NDVI Satellite Proof</div>
-                        <div className="text-[11px] text-stone-400">12-day revisit optical vegetation curves and canopy vigor curves.</div>
+                        <div className="text-[11px] text-stone-400">12-day composite platform update interval optical vegetation and canopy vigor curves.</div>
                       </div>
                     </div>
 
@@ -949,12 +949,12 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                         onClose();
                         onOpenReportModal();
                       } else {
-                        onSelectPlan('Field Verification Report ($99)');
+                        onSelectPlan('Field Evidence Report ($99)');
                       }
                     }}
                     className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black text-xs transition flex items-center gap-2 shadow-lg shadow-amber-950/40"
                   >
-                    <span>Generate Field Verification Report &rarr;</span>
+                    <span>Generate Field Evidence Report &rarr;</span>
                   </button>
                 </div>
               </div>
@@ -1173,7 +1173,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                     </p>
                   </div>
 
-                  {/* Add-on 4: Field Verification Report 10-Pack Bundle */}
+                  {/* Add-on 4: Field Evidence Report 10-Pack Bundle */}
                   <div
                     onClick={() => {
                       setSelectedAddOns((prev) =>
@@ -1191,12 +1191,12 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-stone-100 flex items-center gap-1.5">
                         <Check className={`w-4 h-4 p-0.5 rounded ${selectedAddOns.includes('report_bundle_10') ? 'bg-amber-500 text-stone-950 font-bold' : 'bg-stone-800 text-transparent'}`} />
-                        <span>10-Pack Field Verification Reports Bundle</span>
+                        <span>10-Pack Field Evidence Reports Bundle</span>
                       </span>
                       <span className="text-xs font-mono font-bold text-amber-300">$790 (Save $200)</span>
                     </div>
                     <p className="text-[11px] text-stone-400 pl-5 leading-relaxed">
-                      Pre-purchase 10 audit-ready Field Verification Reports at $79/field (20% discount off standard $99 individual price).
+                      Pre-purchase 10 audit-ready Field Evidence Reports at $79/field (20% discount off standard $99 individual price).
                     </p>
                   </div>
 
@@ -1425,7 +1425,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                 <div className="p-4 rounded-2xl bg-stone-900/50 border border-stone-800 text-xs text-stone-300 flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <span className="font-bold text-stone-200">Ready to unlock your farm's verified revenue?</span>
-                    <p className="text-[11px] text-stone-400">Generate a Field Verification Report or start with Basic Farm Intelligence.</p>
+                    <p className="text-[11px] text-stone-400">Generate a Field Evidence Report or start with Basic Farm Intelligence.</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button

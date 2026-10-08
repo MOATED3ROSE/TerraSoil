@@ -8,6 +8,7 @@ import { WeeklyWeather6MonthChart } from './WeeklyWeather6MonthChart';
 import { downloadFieldCSV } from '../utils/csvExportUtils';
 import { getCriticalMoistureThreshold, evaluateFieldMoistureAlert } from '../utils/moistureAlertUtils';
 import { MoistureAlertBanner } from './MoistureAlertBanner';
+import { DataStateBadge } from './DataStateBadge';
 import { 
   Activity, 
   Droplets, 
@@ -288,7 +289,10 @@ export const SatelliteDashboard: React.FC<SatelliteDashboardProps> = ({
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
           <div className="flex items-center justify-between text-stone-400 text-xs mb-2">
             <span className="font-semibold uppercase tracking-wider text-[11px]">Cumulative Precipitation</span>
-            <CloudRain className="w-4 h-4 text-sky-400" />
+            <div className="flex items-center gap-1.5">
+              <DataStateBadge state="observed" source="ERA5-Land" />
+              <CloudRain className="w-4 h-4 text-sky-400" />
+            </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-sky-400">
@@ -309,7 +313,8 @@ export const SatelliteDashboard: React.FC<SatelliteDashboardProps> = ({
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 shadow-lg">
           <div className="flex items-center justify-between text-stone-400 text-xs mb-2">
             <span className="font-semibold uppercase tracking-wider text-[11px]">Mean Temperature</span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
+              <DataStateBadge state="observed" source="Open-Meteo" />
               <Thermometer className="w-4 h-4 text-amber-400" />
               <button
                 onClick={() => setTempUnit(tempUnit === 'C' ? 'F' : 'C')}
@@ -337,22 +342,22 @@ export const SatelliteDashboard: React.FC<SatelliteDashboardProps> = ({
           </div>
         </div>
 
-        {/* Live Root-Zone Soil Moisture & Threshold Alert Indicator */}
+        {/* Live Root-Zone Soil Moisture & Threshold Alert Indicator (CLAIM-S3) */}
         <div className={`border rounded-2xl p-5 shadow-lg transition-all ${
           activeAlert ? 'bg-gradient-to-b from-rose-950/40 to-stone-900 border-rose-600/80 shadow-rose-950/20' : 'bg-stone-900 border-stone-800'
         }`}>
           <div className="flex items-center justify-between text-stone-400 text-xs mb-2">
-            <span className="font-semibold uppercase tracking-wider text-[11px]">Root-Zone Moisture (10-40cm)</span>
+            <span className="font-semibold uppercase tracking-wider text-[11px]">Modeled Root-Zone (10–40cm &amp; 0–100cm)</span>
             <div className="flex items-center gap-1.5">
+              <DataStateBadge state="modeled" uncertainty="±18%" source="Sentinel-1 SAR / Pedotransfer" />
               {activeAlert ? (
                 <span className="bg-rose-950 text-rose-300 border border-rose-700 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3 text-rose-400" />
                   Below Threshold
                 </span>
               ) : (
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <Droplets className="w-4 h-4 text-cyan-400" />
               )}
-              <Droplets className="w-4 h-4 text-cyan-400" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
@@ -379,6 +384,9 @@ export const SatelliteDashboard: React.FC<SatelliteDashboardProps> = ({
               title={`Critical Crop Threshold: ${criticalThreshold}% VWC`}
             />
           </div>
+          <p className="text-[10px] text-stone-500 mt-2 leading-tight">
+            Modeled via Sentinel-1 SAR backscatter + SSURGO pedotransfer physics + ERA5 water balance. Not direct probe telemetry.
+          </p>
           {activeAlert && (
             <div className="mt-3 pt-2 border-t border-rose-900/60 flex items-center justify-between text-[10px]">
               <span className="text-rose-300 font-medium">Deficit: -{activeAlert.deficitPct}% VWC</span>
@@ -399,7 +407,10 @@ export const SatelliteDashboard: React.FC<SatelliteDashboardProps> = ({
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 shadow-lg">
           <div className="flex items-center justify-between text-stone-400 text-xs mb-2">
             <span className="font-semibold uppercase tracking-wider text-[11px]">Sentinel-2 NDVI Index</span>
-            <Activity className="w-4 h-4 text-emerald-400" />
+            <div className="flex items-center gap-1.5">
+              <DataStateBadge state="observed" source="Sentinel-2 MSI 10m" />
+              <Activity className="w-4 h-4 text-emerald-400" />
+            </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-emerald-400">{latestNDVI}</span>
@@ -410,9 +421,9 @@ export const SatelliteDashboard: React.FC<SatelliteDashboardProps> = ({
           <p className="text-[11px] text-stone-400 mt-2">
             Baseline SOC: <strong className="text-stone-200">{activeField.baselineSOCPct}%</strong> ({activeField.baselineSOCStockTonsPerHa} t/ha)
           </p>
-          <div className="mt-3 flex items-center justify-between text-[10px] text-emerald-400 pt-2 border-t border-stone-800/80">
-            <span>Additionality Verified</span>
-            <span className="font-mono">+{activeField.carbonBreakdown.totalGrossMT} MT CO₂e/yr</span>
+          <div className="mt-3 flex items-center justify-between text-[10px] text-stone-400 pt-2 border-t border-stone-800/80">
+            <span className="text-amber-400/90 font-medium">Modeled Flux (Not Verified)</span>
+            <span className="font-mono text-emerald-400">+{activeField.carbonBreakdown.totalGrossMT} MT CO₂e/yr (±22%)</span>
           </div>
         </div>
       </div>

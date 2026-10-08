@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { INITIAL_FARMS } from './data/mockFarms';
 import { Farm, Field, UserPersona, EmissionFactorConfig, PracticeRecord } from './types';
 import { DEFAULT_EMISSION_CONFIG, recalculateFieldCarbon } from './utils/carbonCalculations';
@@ -28,6 +28,10 @@ import { OrganizationAndAuditHub } from './components/OrganizationAndAuditHub';
 import { AddOnModulesHub } from './components/AddOnModulesHub';
 import { OfflineStatusBanner } from './components/OfflineStatusBanner';
 import { LandingScreen } from './components/LandingScreen';
+import { LegalModal } from './components/LegalModal';
+import { ClaimsRegisterModal } from './components/ClaimsRegisterModal';
+import { CreateFarmModal } from './components/CreateFarmModal';
+import { AlphaLaunchReadinessModal } from './components/AlphaLaunchReadinessModal';
 import { registerServiceWorker } from './serviceWorkerRegistration';
 import { cacheFarmsLocally, enqueueOfflineActivity } from './utils/offlineStorage';
 import { getExplainThisContextForField } from './data/signatureFeaturesData';
@@ -35,7 +39,8 @@ import { MOCK_AUTH_USERS, INITIAL_AUTH_SESSIONS, INITIAL_SECURITY_ALERTS, Extend
 import { CropMoistureThresholdConfig, MoistureAlert, ExplainThisMetricContext, GISMapLayerType, AuthSession, SecurityAlert, MFAMethod } from './types';
 import { DEFAULT_CROP_MOISTURE_THRESHOLDS, evaluateFieldMoistureAlert } from './utils/moistureAlertUtils';
 import { downloadFieldCSV } from './utils/csvExportUtils';
-import { Check, Info, Bot, Map, Globe2, BookOpen, Sparkles, Scale } from 'lucide-react';
+import { PushNotificationService } from './services/pushNotificationService';
+import { Check, Info, Bot, Map, Globe2, BookOpen, Sparkles, Scale, Rocket } from 'lucide-react';
 
 export default function App() {
   const [farms, setFarms] = useState<Farm[]>(INITIAL_FARMS);
@@ -63,6 +68,11 @@ export default function App() {
   const [showLineageModal, setShowLineageModal] = useState(false);
   const [showExplainThisModal, setShowExplainThisModal] = useState(false);
   const [showTerraSoilPdfModal, setShowTerraSoilPdfModal] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [showClaimsRegisterModal, setShowClaimsRegisterModal] = useState(false);
+  const [showAlphaLaunchModal, setShowAlphaLaunchModal] = useState(false);
+  const [showCreateFarmModal, setShowCreateFarmModal] = useState(false);
+  const [legalInitialTab, setLegalInitialTab] = useState<'privacy' | 'terms' | 'data_rights'>('data_rights');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<ExtendedAuthUser | null>(MOCK_AUTH_USERS.farmer);
@@ -238,6 +248,18 @@ export default function App() {
     .map((f) => evaluateFieldMoistureAlert(f, thresholdConfig))
     .filter((a): a is MoistureAlert => a !== null && !acknowledgedAlerts[a.id]);
 
+  // Listen for Service Worker Push notification click messages
+  useEffect(() => {
+    const unsubscribe = PushNotificationService.onNotificationClickMessage(({ fieldId }) => {
+      if (fieldId) {
+        setSelectedFieldId(fieldId);
+        setShowAlertModal(true);
+        showToast('Navigated to affected field from background Push notification.');
+      }
+    });
+    return unsubscribe;
+  }, []);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -261,6 +283,19 @@ export default function App() {
         };
       })
     );
+
+    // If Push Notifications are enabled, dispatch real-time system Push alert via Service Worker
+    const targetFld = currentFarm.fields.find((fld) => fld.id === fieldId);
+    if (targetFld) {
+      const simulatedAlert = evaluateFieldMoistureAlert(
+        { ...targetFld, rootZoneMoisturePct: simulatedMoisture },
+        thresholdConfig
+      );
+      if (simulatedAlert) {
+        PushNotificationService.dispatchSoilMoistureAlert(simulatedAlert, targetFld);
+      }
+    }
+
     showToast(`Simulated dry spell: Root moisture reduced to ${simulatedMoisture}% VWC. Threshold alert triggered!`);
   };
 
@@ -308,6 +343,21 @@ export default function App() {
     if (farm.fields.length > 0) {
       setSelectedFieldId(farm.fields[0].id);
     }
+  };
+
+  // Add new agricultural enterprise (PRD-18 Journey Stage 1)
+  const handleAddFarm = (newFarmData: Omit<Farm, 'id'>) => {
+    const newId = `farm-${Date.now()}`;
+    const createdFarm: Farm = {
+      ...newFarmData,
+      id: newId,
+    };
+    setFarms((prev) => [createdFarm, ...prev]);
+    setCurrentFarmId(newId);
+    setActivePersona(createdFarm.personaType);
+    setCurrentTab('map');
+    setMapSubMode('parcel');
+    showToast(`Created farm "${createdFarm.name}". Journey Stage 1 complete! Now add your first field boundary.`);
   };
 
   // Add practice to field
@@ -578,6 +628,7 @@ export default function App() {
           onOpenReportModal={() => setShowReportModal(true)}
           onOpenAIAssistant={() => setShowAIAssistant(true)}
           onOpenTerraSoilPdf={() => setShowTerraSoilPdfModal(true)}
+          onOpenAlphaLaunchModal={() => setShowAlphaLaunchModal(true)}
         />
       ) : (
         <>
@@ -603,6 +654,9 @@ export default function App() {
             onLogout={handleLogout}
             activeSessionsCount={authSessions.length}
             onReturnToLanding={() => setShowLanding(true)}
+            onOpenClaimsRegister={() => setShowClaimsRegisterModal(true)}
+            onOpenAlphaLaunchModal={() => setShowAlphaLaunchModal(true)}
+            onOpenCreateFarmModal={() => setShowCreateFarmModal(true)}
           />
 
           {/* Service Worker Offline Status Banner & Cache Controller */}
@@ -777,6 +831,8 @@ export default function App() {
             onOpenReportModal={() => setShowReportModal(true)}
             onToggleAIAssistant={() => setShowAIAssistant(true)}
             onOpenTerraSoilPdf={() => setShowTerraSoilPdfModal(true)}
+            onOpenAlphaLaunchModal={() => setShowAlphaLaunchModal(true)}
+            onOpenCreateFarmModal={() => setShowCreateFarmModal(true)}
           />
         )}
 
@@ -948,6 +1004,40 @@ export default function App() {
         />
       )}
 
+      {/* Legal & Data Rights Modal */}
+      <LegalModal
+        isOpen={showLegalModal}
+        onClose={() => setShowLegalModal(false)}
+        initialTab={legalInitialTab}
+      />
+
+      {/* Scientific Claims & Assurance Register Modal */}
+      <ClaimsRegisterModal
+        isOpen={showClaimsRegisterModal}
+        onClose={() => setShowClaimsRegisterModal(false)}
+      />
+
+      {/* Alpha Launch Readiness & 5-Step Journey Verifier (PRD-18) */}
+      <AlphaLaunchReadinessModal
+        isOpen={showAlphaLaunchModal}
+        onClose={() => setShowAlphaLaunchModal(false)}
+        currentFarm={currentFarm}
+        selectedField={selectedField}
+        onOpenCreateFarmModal={() => setShowCreateFarmModal(true)}
+        onNavigateTab={(tab) => handleSelectTab(tab)}
+        onOpenReportModal={() => setShowReportModal(true)}
+      />
+
+      {/* Create Farm Modal (Journey Step 1) */}
+      <CreateFarmModal
+        isOpen={showCreateFarmModal}
+        onClose={() => setShowCreateFarmModal(false)}
+        onAddFarm={handleAddFarm}
+        onJourneyStepComplete={() => {
+          setShowCreateFarmModal(false);
+        }}
+      />
+
       {/* Footer */}
       {!showLanding && (
         <footer className="bg-stone-950 border-t border-stone-800 text-xs text-stone-500 py-6 mt-12">
@@ -967,6 +1057,22 @@ export default function App() {
                 Landing Screen
               </button>
               <button
+                onClick={() => setShowAlphaLaunchModal(true)}
+                className="text-emerald-400 hover:underline font-semibold flex items-center gap-1"
+                title="Open PRD-18 Alpha Launch Readiness Hub & 5-Step Journey Verifier"
+              >
+                <Rocket className="w-3.5 h-3.5" />
+                Alpha Readiness (PRD-18)
+              </button>
+              <button
+                onClick={() => setShowClaimsRegisterModal(true)}
+                className="text-cyan-400 hover:underline font-semibold flex items-center gap-1"
+                title="Inspect Public Claims Register with 3-State Assurance Framework"
+              >
+                <Scale className="w-3.5 h-3.5" />
+                Claims Register
+              </button>
+              <button
                 onClick={() => handleSelectTab('workspace')}
                 className="text-emerald-400 hover:underline font-semibold"
               >
@@ -982,7 +1088,7 @@ export default function App() {
                 onClick={() => setShowReportModal(true)}
                 className="text-emerald-400 hover:underline"
               >
-                Field Verification Reports
+                Field Evidence Reports
               </button>
               <button
                 onClick={() => setShowTerraSoilPdfModal(true)}
@@ -991,10 +1097,46 @@ export default function App() {
                 TerraSoil AI Guide (PDF)
               </button>
               <button
+                onClick={() => {
+                  setLegalInitialTab('data_rights');
+                  setShowLegalModal(true);
+                }}
+                className="text-emerald-400 hover:underline font-semibold"
+              >
+                Grower Data Rights
+              </button>
+              <button
+                onClick={() => {
+                  setLegalInitialTab('privacy');
+                  setShowLegalModal(true);
+                }}
+                className="text-stone-400 hover:text-stone-200"
+              >
+                Privacy
+              </button>
+              <button
+                onClick={() => {
+                  setLegalInitialTab('terms');
+                  setShowLegalModal(true);
+                }}
+                className="text-stone-400 hover:text-stone-200"
+              >
+                Terms
+              </button>
+              <button
                 onClick={() => setShowPricingModal(true)}
                 className="text-stone-400 hover:text-stone-200"
               >
-                Pricing
+                Pricing &amp; Packaging
+              </button>
+              <button
+                onClick={() => {
+                  setAddOnInitialModule('data_room');
+                  setShowAddOnHub(true);
+                }}
+                className="text-cyan-400 hover:underline font-semibold"
+              >
+                Add-on Modules Hub
               </button>
               <a href="mailto:support@terrasoil.ag" className="hover:text-stone-300">
                 support@terrasoil.ag

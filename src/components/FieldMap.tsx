@@ -2065,7 +2065,7 @@ export const FieldMap: React.FC<FieldMapProps> = ({
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-stone-400">Annual Net Sequestration</span>
+                          <span className="text-xs text-stone-400">Modeled Net Sequestration (±22%)</span>
                           <span className="text-emerald-400 font-mono font-bold text-sm">
                             +{currentTargetField.carbonBreakdown.totalGrossMT} MT CO₂e/yr
                           </span>

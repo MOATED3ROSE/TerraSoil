@@ -12,6 +12,10 @@ export function registerServiceWorker() {
       .then((registration) => {
         console.log('[TerraSoil SW] Registered successfully with scope:', registration.scope);
 
+        if ('PushManager' in window) {
+          console.log('[TerraSoil SW] Push API and PushManager supported by service worker.');
+        }
+
         // Check for updates
         registration.onupdatefound = () => {
           const installingWorker = registration.installing;

@@ -25,7 +25,10 @@ import {
   Smartphone,
   Laptop,
   FolderKanban,
-  Home
+  Home,
+  Scale,
+  Rocket,
+  Plus
 } from 'lucide-react';
 import { Farm, UserPersona } from '../types';
 import { ExtendedAuthUser } from '../data/mockAuthData';
@@ -51,6 +54,9 @@ interface NavbarProps {
   onLogout?: () => void;
   activeSessionsCount?: number;
   onReturnToLanding?: () => void;
+  onOpenClaimsRegister?: () => void;
+  onOpenAlphaLaunchModal?: () => void;
+  onOpenCreateFarmModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -74,6 +80,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   activeSessionsCount = 3,
   onReturnToLanding,
+  onOpenClaimsRegister,
+  onOpenAlphaLaunchModal,
+  onOpenCreateFarmModal,
 }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   return (
@@ -169,6 +178,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </option>
               ))}
             </select>
+            {onOpenCreateFarmModal && (
+              <button
+                onClick={onOpenCreateFarmModal}
+                className="p-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-400 border border-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-1 transition"
+                title="Create New Agricultural Enterprise (Journey Step 1)"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline text-[11px]">New Farm</span>
+              </button>
+            )}
           </div>
 
           {/* User Account & Security Pill */}
@@ -234,7 +253,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span className="font-bold">Personal Command Center</span>
                     </div>
                     <span className="bg-emerald-900/40 text-emerald-400 text-[10px] font-mono px-1.5 py-0.5 rounded font-semibold">
-                      PRD Hub
+                      Console
                     </span>
                   </button>
 
@@ -266,7 +285,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span>Org, Permissions &amp; Audit</span>
                     </div>
                     <span className="bg-emerald-950 text-emerald-400 text-[10px] font-mono px-1.5 py-0.5 rounded border border-emerald-800/80">
-                      PRD-12
+                      Audit Trail
                     </span>
                   </button>
 
@@ -278,7 +297,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="w-full px-3 py-2 rounded-xl text-left hover:bg-stone-800 text-stone-200 flex items-center gap-2 transition"
                   >
                     <User className="w-4 h-4 text-stone-400" />
-                    <span>Switch Role / Account (PRD-02–05)</span>
+                    <span>Switch Role / Account Profile</span>
                   </button>
 
                   {onReturnToLanding && (
@@ -472,6 +491,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
+          {onOpenClaimsRegister && (
+            <button
+              onClick={onOpenClaimsRegister}
+              className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-700/80 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
+              title="Inspect Public Scientific Claims & Methodology Register"
+            >
+              <Scale className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden xl:inline">Claims Register</span>
+              <span className="text-[10px] font-mono text-cyan-400 border border-cyan-800/80 bg-cyan-950/80 px-1 rounded">3-State</span>
+            </button>
+          )}
+
+          {onOpenAlphaLaunchModal && (
+            <button
+              onClick={onOpenAlphaLaunchModal}
+              className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-emerald-800/80 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition hover:text-emerald-300"
+              title="Open PRD-18 Alpha Launch Readiness Hub & 5-Step Journey Verifier"
+            >
+              <Rocket className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden lg:inline">Alpha Readiness</span>
+              <span className="text-[10px] font-mono text-emerald-400 border border-emerald-800/80 bg-emerald-950/80 px-1 rounded font-bold">PRD-18</span>
+            </button>
+          )}
+
           <button
             onClick={onOpenPricingModal}
             className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-700/80 px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
@@ -483,10 +526,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onOpenReportModal}
             className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-emerald-950/40 transition hover:scale-105 active:scale-95"
-            title="Generate Audit-Ready Field Verification Report Package"
+            title="Generate Audit-Ready Field Evidence Report Package (Not Independently Verified)"
           >
             <FileText className="w-3.5 h-3.5" />
-            Field Verification Report
+            Field Evidence Report
           </button>
 
           <button

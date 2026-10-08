@@ -43,8 +43,20 @@ import {
   Filter,
   CheckCheck,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Radio,
+  Smartphone,
+  Send,
+  Volume2,
+  VolumeX,
+  Info,
+  ExternalLink
 } from 'lucide-react';
+import { 
+  PushNotificationService, 
+  PushNotificationPreferences, 
+  SoilMoisturePushLogItem 
+} from '../services/pushNotificationService';
 
 interface MoistureAlertModalProps {
   isOpen: boolean;
@@ -69,8 +81,106 @@ export const MoistureAlertModal: React.FC<MoistureAlertModalProps> = ({
   onAcknowledgeAlert,
   onSimulateMoistureDrop,
 }) => {
-  const [activeTab, setActiveTab] = useState<'active-alerts' | 'custom-rules' | 'threshold-config'>('custom-rules');
+  const [activeTab, setActiveTab] = useState<'active-alerts' | 'custom-rules' | 'threshold-config' | 'push-notifications'>('custom-rules');
   
+  // Push API & Service Worker state
+  const [pushSupported, setPushSupported] = useState<boolean>(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
+  const [pushPrefs, setPushPrefs] = useState<PushNotificationPreferences>(PushNotificationService.getPreferences());
+  const [pushLog, setPushLog] = useState<SoilMoisturePushLogItem[]>([]);
+  const [isTestingPush, setIsTestingPush] = useState<boolean>(false);
+  const [pushFeedbackMessage, setPushFeedbackMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPushSupported(PushNotificationService.isSupported());
+    setPushPermission(PushNotificationService.getPermissionState());
+    setPushPrefs(PushNotificationService.getPreferences());
+    setPushLog(PushNotificationService.getNotificationLog());
+  }, []);
+
+  const handleRequestPushPermission = async () => {
+    setIsTestingPush(true);
+    setPushFeedbackMessage(null);
+    try {
+      const res = await PushNotificationService.requestPermission();
+      setPushPermission(res);
+      const updated = PushNotificationService.getPreferences();
+      setPushPrefs(updated);
+      if (res === 'granted') {
+        setPushFeedbackMessage('Notification permission granted! Background Push API is now enabled.');
+      } else if (res === 'denied') {
+        setPushFeedbackMessage('Notification permission was blocked in browser settings.');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsTestingPush(false);
+    }
+  };
+
+  const handleTogglePushEnabled = async () => {
+    if (!pushPrefs.enabled) {
+      if (pushPermission !== 'granted') {
+        await handleRequestPushPermission();
+      } else {
+        const updated = PushNotificationService.savePreferences({ enabled: true });
+        setPushPrefs(updated);
+        setPushFeedbackMessage('Push notifications enabled for real-time root-zone alerts.');
+      }
+    } else {
+      const updated = PushNotificationService.savePreferences({ enabled: false });
+      setPushPrefs(updated);
+      setPushFeedbackMessage('Push notifications paused.');
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    setIsTestingPush(true);
+    setPushFeedbackMessage(null);
+    try {
+      const ok = await PushNotificationService.sendTestPushNotification(currentField.name);
+      if (ok) {
+        setPushFeedbackMessage(`Dispatched test soil moisture push alert for ${currentField.name} via Service Worker!`);
+        setPushLog(PushNotificationService.getNotificationLog());
+        setPushPermission(PushNotificationService.getPermissionState());
+      } else {
+        setPushFeedbackMessage('Could not dispatch push alert. Please ensure notifications are allowed.');
+      }
+    } catch (err) {
+      console.error(err);
+      setPushFeedbackMessage('Failed to trigger test push notification.');
+    } finally {
+      setIsTestingPush(false);
+    }
+  };
+
+  const handleSimulateWithPush = async (moistureVal = 16.5) => {
+    onSimulateMoistureDrop(currentField.id, moistureVal);
+    // Trigger push alert directly
+    const criticalThreshold = thresholdConfig[currentField.cropType.toLowerCase()] || 22;
+    const deficit = Number((criticalThreshold - moistureVal).toFixed(1));
+    const testAlert: MoistureAlert = {
+      id: `alert-${currentField.id}-${Date.now()}`,
+      fieldId: currentField.id,
+      fieldName: currentField.name,
+      cropType: currentField.cropType,
+      currentRootZoneMoisturePct: moistureVal,
+      criticalThresholdPct: criticalThreshold,
+      severity: deficit >= 5 ? 'critical' : 'warning',
+      deficitPct: deficit,
+      triggeredAt: new Date().toISOString(),
+      isAcknowledged: false,
+      mitigationSteps: [
+        'Prioritize supplemental irrigation (1.0-1.5 inches).',
+        'Cease mechanical passes to protect capillaric root moisture.',
+      ],
+    };
+
+    await PushNotificationService.dispatchSoilMoistureAlert(testAlert, currentField);
+    setPushLog(PushNotificationService.getNotificationLog());
+    setPushFeedbackMessage(`Simulated dry spell (${moistureVal}% VWC) & dispatched Push notification!`);
+  };
+
   // Crop threshold state
   const [localConfig, setLocalConfig] = useState<CropMoistureThresholdConfig>({
     ...DEFAULT_CROP_MOISTURE_THRESHOLDS,
@@ -319,20 +429,54 @@ export const MoistureAlertModal: React.FC<MoistureAlertModalProps> = ({
               <Sliders className="w-3.5 h-3.5" />
               <span>Crop Thresholds</span>
             </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('push-notifications');
+                setShowRuleBuilder(false);
+              }}
+              className={`px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5 ${
+                activeTab === 'push-notifications'
+                  ? 'bg-cyan-600 text-white shadow-sm'
+                  : 'text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              <Radio className={`w-3.5 h-3.5 ${pushPrefs.enabled ? 'text-cyan-300 animate-pulse' : 'text-stone-400'}`} />
+              <span>Push API Alerts (Service Worker)</span>
+              {pushPrefs.enabled && (
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              )}
+            </button>
           </div>
 
           {/* Drydown Simulation Trigger */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onSimulateMoistureDrop(currentField.id, 17)}
+              onClick={() => handleSimulateWithPush(16.5)}
               className="bg-stone-950 hover:bg-stone-800 text-amber-300 px-3 py-1.5 rounded-xl border border-amber-900/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-              title="Simulate a dry spell (17% VWC) on current field to test compound rule evaluation"
+              title="Simulate a dry spell (16.5% VWC) on current field and dispatch Push alert"
             >
               <Droplets className="w-3.5 h-3.5 text-amber-400" />
-              <span>Simulate Drought (17% VWC)</span>
+              <span>Simulate Drought &amp; Push (16.5%)</span>
             </button>
           </div>
         </div>
+
+        {/* Push Notification Feedback Banner */}
+        {pushFeedbackMessage && (
+          <div className="bg-cyan-950/90 border-b border-cyan-800/80 text-cyan-200 px-4 sm:px-6 py-2 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Radio className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+              <span>{pushFeedbackMessage}</span>
+            </div>
+            <button
+              onClick={() => setPushFeedbackMessage(null)}
+              className="text-cyan-400 hover:text-cyan-200"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Modal Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5 text-xs">
@@ -957,6 +1101,340 @@ export const MoistureAlertModal: React.FC<MoistureAlertModalProps> = ({
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 4: PUSH NOTIFICATIONS & BACKGROUND SERVICE WORKER ALERTS */}
+          {activeTab === 'push-notifications' && (
+            <div className="space-y-5">
+              
+              {/* Push Engine Overview Banner */}
+              <div className="bg-gradient-to-r from-stone-950 via-cyan-950/40 to-stone-950 p-5 rounded-2xl border border-cyan-800/80 shadow-xl space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <span className="p-3 bg-cyan-950 text-cyan-400 rounded-2xl border border-cyan-800 shadow-inner">
+                      <Radio className="w-6 h-6 animate-pulse" />
+                    </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-stone-100 text-sm">
+                          Service Worker Push API Engine for Soil Moisture Alerts
+                        </h4>
+                        <span className="bg-cyan-900/60 text-cyan-300 border border-cyan-700/80 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+                          W3C Push API
+                        </span>
+                      </div>
+                      <p className="text-stone-300 text-xs max-w-2xl leading-relaxed">
+                        Extends the TerraSoil Service Worker (<code className="text-cyan-300 bg-stone-900 px-1 py-0.5 rounded">/sw.js</code>) to monitor root-zone volumetric water content (VWC) and deliver real-time system notifications to your device, <strong>even when the portal is closed or running in the background</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Status Badges */}
+                  <div className="flex flex-col sm:items-end gap-1.5 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-stone-400">Service Worker:</span>
+                      <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-md font-mono font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Active &amp; Ready
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-stone-400">Browser Permission:</span>
+                      <span className={`px-2 py-0.5 rounded-md font-mono font-semibold ${
+                        pushPermission === 'granted'
+                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                          : pushPermission === 'denied'
+                          ? 'bg-rose-950 text-rose-300 border border-rose-800'
+                          : 'bg-amber-950 text-amber-300 border border-amber-800'
+                      }`}>
+                        {pushPermission.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Master Activation Card */}
+                <div className="bg-stone-900/90 border border-stone-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="w-4 h-4 text-cyan-400" />
+                      <p className="font-bold text-stone-100 text-xs">
+                        Real-Time Background Push Notifications
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-stone-400">
+                      Dispatches instant desktop/mobile OS notifications with actionable irrigation guidance on root-zone deficit breaches.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {pushPermission !== 'granted' && (
+                      <button
+                        onClick={handleRequestPushPermission}
+                        disabled={isTestingPush}
+                        className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5"
+                      >
+                        <Radio className="w-3.5 h-3.5" />
+                        Enable Notifications
+                      </button>
+                    )}
+                    <button
+                      onClick={handleTogglePushEnabled}
+                      className={`px-4 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-sm ${
+                        pushPrefs.enabled
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                          : 'bg-stone-800 text-stone-300 hover:bg-stone-700 border border-stone-700'
+                      }`}
+                    >
+                      <span>{pushPrefs.enabled ? 'Push Alerts Enabled' : 'Enable Push Alerts'}</span>
+                      <span className={`w-2 h-2 rounded-full ${pushPrefs.enabled ? 'bg-white animate-pulse' : 'bg-stone-500'}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons & Testing Playground */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-stone-200 text-xs flex items-center gap-1.5">
+                      <Send className="w-3.5 h-3.5 text-cyan-400" />
+                      Live Device Push Test
+                    </span>
+                    <span className="text-[10px] text-stone-500 font-mono">PushManager API</span>
+                  </div>
+                  <p className="text-[11px] text-stone-400 leading-relaxed">
+                    Test the end-to-end Service Worker notification pipeline. Sends a synthetic push alert to your device with vibration pattern and field deep-link.
+                  </p>
+                  <button
+                    onClick={handleSendTestPush}
+                    disabled={isTestingPush}
+                    className="w-full bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-700/60 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Send Test Push Notification to Device</span>
+                  </button>
+                </div>
+
+                <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-stone-200 text-xs flex items-center gap-1.5">
+                      <Droplets className="w-3.5 h-3.5 text-amber-400" />
+                      Simulate Drydown &amp; Fire Push
+                    </span>
+                    <span className="text-[10px] text-amber-400 font-mono">16.2% VWC Deficit</span>
+                  </div>
+                  <p className="text-[11px] text-stone-400 leading-relaxed">
+                    Drops <strong>{currentField.name}</strong> ({currentField.cropType}) to 16.2% VWC (critical drought) and triggers the background push alert.
+                  </p>
+                  <button
+                    onClick={() => handleSimulateWithPush(16.2)}
+                    className="w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-700/60 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition"
+                  >
+                    <Droplets className="w-3.5 h-3.5" />
+                    <span>Simulate 16.2% VWC &amp; Dispatch Push Alert</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Push Alert Notification Preferences */}
+              <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 space-y-4">
+                <div className="flex items-center justify-between border-b border-stone-800/80 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-emerald-400" />
+                    <h5 className="font-bold text-stone-100 text-xs">
+                      Background Push Dispatch Preferences
+                    </h5>
+                  </div>
+                  <span className="text-[10px] text-stone-500">Stored Locally in Browser</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <label className="flex items-start gap-3 p-3 bg-stone-900 rounded-xl border border-stone-800 cursor-pointer hover:border-stone-700 transition">
+                    <input
+                      type="checkbox"
+                      checked={pushPrefs.alertOnCritical}
+                      onChange={(e) => {
+                        const updated = PushNotificationService.savePreferences({
+                          alertOnCritical: e.target.checked,
+                        });
+                        setPushPrefs(updated);
+                      }}
+                      className="mt-0.5 accent-cyan-500 rounded"
+                    />
+                    <div>
+                      <p className="font-semibold text-stone-200">Critical Deficit Alerts (&lt; 18% VWC)</p>
+                      <p className="text-[11px] text-stone-400 mt-0.5">
+                        High-priority alerts requiring immediate center-pivot or drip irrigation before permanent wilting.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-3 p-3 bg-stone-900 rounded-xl border border-stone-800 cursor-pointer hover:border-stone-700 transition">
+                    <input
+                      type="checkbox"
+                      checked={pushPrefs.alertOnWarning}
+                      onChange={(e) => {
+                        const updated = PushNotificationService.savePreferences({
+                          alertOnWarning: e.target.checked,
+                        });
+                        setPushPrefs(updated);
+                      }}
+                      className="mt-0.5 accent-cyan-500 rounded"
+                    />
+                    <div>
+                      <p className="font-semibold text-stone-200">Warning Deficit Alerts (Below Threshold)</p>
+                      <p className="text-[11px] text-stone-400 mt-0.5">
+                        Pre-stress alerts when moisture is within 2-5% of crop-specific thresholds.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-3 p-3 bg-stone-900 rounded-xl border border-stone-800 cursor-pointer hover:border-stone-700 transition">
+                    <input
+                      type="checkbox"
+                      checked={pushPrefs.soundAndVibration}
+                      onChange={(e) => {
+                        const updated = PushNotificationService.savePreferences({
+                          soundAndVibration: e.target.checked,
+                        });
+                        setPushPrefs(updated);
+                      }}
+                      className="mt-0.5 accent-cyan-500 rounded"
+                    />
+                    <div>
+                      <p className="font-semibold text-stone-200 flex items-center gap-1.5">
+                        <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+                        Haptic Vibration &amp; Notification Pulse
+                      </p>
+                      <p className="text-[11px] text-stone-400 mt-0.5">
+                        Uses high-visibility vibration pattern ([250ms, 100ms, 250ms, 100ms, 400ms]) for agricultural emergency alerts.
+                      </p>
+                    </div>
+                  </label>
+
+                  <div className="p-3 bg-stone-900 rounded-xl border border-stone-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-stone-200">Minimum Deficit Sensitivity</span>
+                      <span className="font-mono text-cyan-400 font-bold">
+                        {pushPrefs.minDeficitThreshold}% Deficit
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1.0"
+                      max="8.0"
+                      step="0.5"
+                      value={pushPrefs.minDeficitThreshold}
+                      onChange={(e) => {
+                        const updated = PushNotificationService.savePreferences({
+                          minDeficitThreshold: Number(e.target.value),
+                        });
+                        setPushPrefs(updated);
+                      }}
+                      className="w-full accent-cyan-500 cursor-pointer"
+                    />
+                    <p className="text-[10px] text-stone-500">
+                      Suppresses minor moisture blips smaller than {pushPrefs.minDeficitThreshold}% below critical threshold.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Real-Time Push Notification Event History */}
+              <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-cyan-400" />
+                    <h5 className="font-bold text-stone-100 text-xs">
+                      Recent Soil Moisture Push Event History ({pushLog.length})
+                    </h5>
+                  </div>
+                  {pushLog.length > 0 && (
+                    <button
+                      onClick={() => {
+                        PushNotificationService.clearNotificationLog();
+                        setPushLog([]);
+                      }}
+                      className="text-stone-400 hover:text-stone-200 text-[11px] underline"
+                    >
+                      Clear Log
+                    </button>
+                  )}
+                </div>
+
+                {pushLog.length === 0 ? (
+                  <div className="p-6 text-center text-stone-500 border border-dashed border-stone-800 rounded-xl space-y-1">
+                    <p>No Push notifications dispatched in this session yet.</p>
+                    <p className="text-[10px] text-stone-600">
+                      Click "Send Test Push Notification" above or simulate a drought to verify real-time alerts.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {pushLog.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-stone-900 border border-stone-800 p-2.5 rounded-xl flex items-center justify-between text-xs"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`p-1.5 rounded-lg border ${
+                              item.severity === 'critical'
+                                ? 'bg-rose-950 text-rose-400 border-rose-800'
+                                : 'bg-amber-950 text-amber-400 border-amber-800'
+                            }`}
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-stone-100">{item.fieldName}</span>
+                              <span className="text-[10px] font-mono text-stone-400 uppercase">
+                                ({item.cropType})
+                              </span>
+                              <span
+                                className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-bold ${
+                                  item.severity === 'critical'
+                                    ? 'bg-rose-950 text-rose-300 border border-rose-800'
+                                    : 'bg-amber-950 text-amber-300 border border-amber-800'
+                                }`}
+                              >
+                                {item.severity}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-stone-400 mt-0.5">
+                              Moisture: <strong className="text-stone-200">{item.currentMoisture}% VWC</strong> (Deficit: {item.deficit}% below {item.threshold}% threshold)
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right text-[10px] font-mono text-stone-500">
+                          {new Date(item.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Technical Documentation & Service Worker Architecture */}
+              <div className="bg-stone-900/60 p-4 rounded-2xl border border-stone-800 text-[11px] text-stone-400 space-y-2">
+                <div className="flex items-center gap-2 text-stone-300 font-semibold text-xs">
+                  <Info className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>How the TerraSoil Background Service Worker Push Pipeline Operates</span>
+                </div>
+                <p className="leading-relaxed">
+                  1. <strong>Background Registration:</strong> The Service Worker (<code className="text-stone-300">/sw.js</code>) registers the Push API subscription using the W3C PushManager interface.
+                </p>
+                <p className="leading-relaxed">
+                  2. <strong>Autonomous Wake-Up:</strong> In accordance with W3C Service Worker specifications, incoming push events wake up the background worker thread via <code className="text-cyan-300">self.addEventListener('push')</code>, parsing root-zone telemetry payloads without requiring an active browser window.
+                </p>
+                <p className="leading-relaxed">
+                  3. <strong>Deep-Link Navigation:</strong> Clicking a soil notification fires <code className="text-cyan-300">self.addEventListener('notificationclick')</code>, which automatically focuses or launches the portal window and navigates straight to the affected parcel.
+                </p>
+              </div>
+
             </div>
           )}
 

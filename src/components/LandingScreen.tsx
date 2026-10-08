@@ -25,15 +25,23 @@ import {
   Globe2, 
   Check, 
   AlertCircle,
-  Clock,
   HelpCircle,
   FileSpreadsheet,
   BarChart3,
   Award,
-  Code
+  Code,
+  Database,
+  Info,
+  ExternalLink,
+  BookOpen,
+  Cpu,
+  Rocket
 } from 'lucide-react';
 import { UserPersona } from '../types';
 import { MOCK_AUTH_USERS, ExtendedAuthUser } from '../data/mockAuthData';
+import { LegalModal } from './LegalModal';
+import { ClaimsRegisterModal } from './ClaimsRegisterModal';
+import { DataStateBadge } from './DataStateBadge';
 
 interface LandingScreenProps {
   currentUser: ExtendedAuthUser | null;
@@ -44,6 +52,7 @@ interface LandingScreenProps {
   onOpenReportModal: () => void;
   onOpenAIAssistant: () => void;
   onOpenTerraSoilPdf?: () => void;
+  onOpenAlphaLaunchModal?: () => void;
 }
 
 export const LandingScreen: React.FC<LandingScreenProps> = ({
@@ -55,9 +64,13 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   onOpenReportModal,
   onOpenAIAssistant,
   onOpenTerraSoilPdf,
+  onOpenAlphaLaunchModal,
 }) => {
-  // Direct In-Page Login State
+  // Authentication & Sandbox Card Mode: 'demo' (instant sandbox) vs 'signin' (registered account)
+  const [authCardMode, setAuthCardMode] = useState<'demo' | 'signin'>('demo');
   const [selectedDemoRole, setSelectedDemoRole] = useState<UserPersona>('farmer');
+  
+  // Sign-In Form State
   const [emailInput, setEmailInput] = useState<string>('dale@heartlandfarms.com');
   const [passwordInput, setPasswordInput] = useState<string>('TerraSoil2026!');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -66,8 +79,23 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [loginSuccessFeedback, setLoginSuccessFeedback] = useState<string | null>(null);
 
-  // Audience Tabs
+  // Audience Tabs (Section 2)
   const [activeAudienceTab, setActiveAudienceTab] = useState<'farmer' | 'agronomist' | 'corporate'>('farmer');
+
+  // Pricing Toggle (Section 6)
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
+
+  // Legal Modal State (High-Priority Legal & Data Rights)
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState<boolean>(false);
+  const [legalModalTab, setLegalModalTab] = useState<'privacy' | 'terms' | 'data_rights'>('data_rights');
+
+  // PRD-17 Claims Register State
+  const [isClaimsRegisterOpen, setIsClaimsRegisterOpen] = useState<boolean>(false);
+
+  const openLegalModalWithTab = (tab: 'privacy' | 'terms' | 'data_rights') => {
+    setLegalModalTab(tab);
+    setIsLegalModalOpen(true);
+  };
 
   // Handle Quick Demo Account Switch
   const handleSelectDemoRole = (role: UserPersona) => {
@@ -80,7 +108,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
     }
   };
 
-  // Handle Form Submission
+  // Handle Form Submission for Registered Sign-In
   const handleSubmitLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
@@ -97,7 +125,6 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
         onLoginSuccess(user);
         setLoginSuccessFeedback(`Authenticated as ${user.name} (${user.role.toUpperCase()})`);
         setIsSubmitting(false);
-        // Automatically enter the portal smoothly after a brief confirmation
         setTimeout(() => {
           onStartNow();
         }, 400);
@@ -125,7 +152,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
     }, 350);
   };
 
-  // Quick 1-Click Login & Launch
+  // Instant 1-Click Sandbox Launch (No authentication friction)
   const handleQuickLaunchAs = (role: UserPersona) => {
     const user = MOCK_AUTH_USERS[role];
     if (user) {
@@ -137,7 +164,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-emerald-500 selection:text-white">
       {/* Top Floating Glass Navigation */}
-      <nav className="sticky top-0 z-50 bg-stone-950/85 backdrop-blur-md border-b border-stone-800/80">
+      <nav className="sticky top-0 z-40 bg-stone-950/85 backdrop-blur-md border-b border-stone-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo & Portal Identity */}
           <div className="flex items-center gap-3">
@@ -152,23 +179,43 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-stone-400 hidden sm:block">
-                Carbon &amp; Soil-Management Verification System
+                Carbon &amp; Soil-Management Tracking Portal
               </p>
             </div>
           </div>
 
-          {/* Center Links */}
-          <div className="hidden md:flex items-center gap-6 text-xs text-stone-300 font-medium">
-            <a href="#features" className="hover:text-emerald-400 transition">Capabilities</a>
-            <a href="#audiences" className="hover:text-emerald-400 transition">Personas</a>
+          {/* Center Links (Restructured 7 Sections + PRD-17 Claims Register) */}
+          <div className="hidden lg:flex items-center gap-4 text-xs text-stone-300 font-medium">
+            <a href="#overview" className="hover:text-emerald-400 transition">Overview</a>
+            <a href="#audiences" className="hover:text-emerald-400 transition">Stakeholders</a>
+            <a href="#how-it-works" className="hover:text-emerald-400 transition">How It Works</a>
+            <a href="#science" className="hover:text-emerald-400 transition">Science &amp; Jargon</a>
+            <a href="#trust" className="hover:text-emerald-400 transition">Scope &amp; Data Rights</a>
             <a href="#pricing" className="hover:text-emerald-400 transition">Plans &amp; Pricing</a>
-            <a href="#faq" className="hover:text-emerald-400 transition">Knowledge Base</a>
+            <a href="#faq" className="hover:text-emerald-400 transition">FAQ</a>
+            <button
+              onClick={() => setIsClaimsRegisterOpen(true)}
+              className="text-amber-400 hover:text-amber-300 transition font-mono flex items-center gap-1 bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 rounded"
+            >
+              <Scale className="w-3 h-3" />
+              <span>Claims Register</span>
+            </button>
+            {onOpenAlphaLaunchModal && (
+              <button
+                onClick={onOpenAlphaLaunchModal}
+                className="text-emerald-400 hover:text-emerald-300 transition font-mono flex items-center gap-1 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded font-bold"
+                title="Inspect PRD-18 Alpha Launch Readiness & 5-Step Journey Suite"
+              >
+                <Rocket className="w-3 h-3" />
+                <span>Alpha Readiness</span>
+              </button>
+            )}
             <button 
               onClick={onOpenAIAssistant}
               className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 transition"
             >
               <Bot className="w-3.5 h-3.5" />
-              <span>Ask TerraSoil AI</span>
+              <span>Ask AI</span>
             </button>
           </div>
 
@@ -183,34 +230,43 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                 <button
                   onClick={() => onOpenAuthModal('signin')}
                   className="px-3 py-1.5 rounded-lg border border-stone-800 hover:border-stone-700 bg-stone-900 text-stone-300 text-xs font-semibold hover:bg-stone-800 transition"
-                  title="Switch User or Manage Sessions"
                 >
-                  Switch Account
+                  Switch User
                 </button>
               </div>
             ) : (
               <button
-                onClick={() => onOpenAuthModal('signin')}
-                className="px-3 py-1.5 rounded-lg border border-stone-800 hover:border-stone-700 bg-stone-900 text-stone-300 text-xs font-semibold hover:bg-stone-800 transition"
+                onClick={() => {
+                  setAuthCardMode('signin');
+                  const element = document.getElementById('auth-card-anchor');
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    onOpenAuthModal('signin');
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-xl border border-stone-800 hover:border-stone-700 bg-stone-900 text-stone-300 text-xs font-semibold hover:bg-stone-800 transition hidden sm:inline-block"
               >
                 Sign In
               </button>
             )}
 
-            {/* The Main "Start Now" Button */}
+            {/* Primary CTA Button */}
             <button
               onClick={onStartNow}
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-stone-950 font-extrabold text-xs sm:text-sm tracking-wide shadow-lg shadow-emerald-900/40 hover:shadow-emerald-900/60 active:scale-95 transition-all flex items-center gap-2 group"
             >
-              <span>Start Now</span>
+              <span>Launch Demo</span>
               <ArrowRight className="w-4 h-4 text-stone-950 group-hover:translate-x-1 transition-transform stroke-[2.5]" />
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section with Embedded Interactive Sign-In Card */}
-      <section className="relative overflow-hidden pt-12 pb-20 border-b border-stone-800/80">
+      {/* ========================================================================= */}
+      {/* SECTION 1: HERO & INTERACTIVE SANDBOX ACCESS (PRD-16 + PRD-17 Corrections) */}
+      {/* ========================================================================= */}
+      <section id="overview" className="relative overflow-hidden pt-12 pb-20 border-b border-stone-800/80">
         {/* Subtle Ambient Background Gradients */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-20 right-1/4 w-96 h-96 bg-lime-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -218,48 +274,47 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
-            {/* Left Column: Value Proposition & Start CTA */}
+            {/* Left Column: Value Proposition & Hero CTAs */}
             <div className="lg:col-span-7 space-y-6">
               {/* Compliance & Standard Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950/60 border border-emerald-800/50 text-emerald-400 text-xs font-semibold">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/60 border border-emerald-800/50 text-emerald-400 text-xs font-semibold">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>USDA COMET-Farm &bull; IPCC Tier 1 &bull; Sentinel-2 Copernicus</span>
+                <span>USDA COMET-Farm Regional &bull; IPCC Tier 1 &bull; Sentinel-2 Copernicus</span>
               </div>
 
-              {/* Main Headline */}
+              {/* Main Headline (Opening copy requested in review) */}
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-stone-100 tracking-tight leading-tight">
-                Measure, Track &amp; Verify <br />
+                Measure, track, and document <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-200">
-                  Soil Carbon &amp; Regenerative Practices
-                </span>
+                  soil carbon &amp; regenerative practices
+                </span>{' '}
+                with confidence.
               </h1>
 
-              {/* Clear description matching prompt & KB */}
+              {/* Opening lead paragraph (PRD-17 S-1 correction: platform update interval) */}
               <p className="text-stone-300 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
-                The all-in-one SaaS portal for farmers, agronomists, and agricultural supply chains. 
-                Map field boundaries, pull 12-day Sentinel-2 NDVI &amp; root-zone moisture telemetry, 
-                log practices (cover crop, no-till, grazing), model carbon sequestration in metric tons CO₂e, 
-                and generate audit-ready compliance PDF reports.
+                Built for farmers, agronomists, and agricultural supply chains. Turn field boundaries, 12-day composite satellite telemetry, and practice logs into empirical carbon estimates — without replacing your trusted agronomist.
               </p>
 
-              {/* Action Buttons: Big "Start Now" + Quick Tour */}
-              <div className="flex flex-wrap items-center gap-4 pt-2">
+              {/* Action Buttons: Primary Demo + Sample Report (S-6 Field Evidence Report) + AI Assistant */}
+              <div className="flex flex-wrap items-center gap-3.5 pt-2">
                 <button
                   onClick={onStartNow}
-                  className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-lime-400 hover:from-emerald-400 hover:to-lime-300 text-stone-950 font-black text-sm sm:text-base tracking-wide shadow-xl shadow-emerald-950/80 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3 group"
+                  className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-lime-400 hover:from-emerald-400 hover:to-lime-300 text-stone-950 font-black text-sm sm:text-base tracking-wide shadow-xl shadow-emerald-950/80 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2.5 group"
                 >
                   <Sprout className="w-5 h-5 text-stone-950 stroke-[2.5]" />
-                  <span>Start Now &bull; Launch MRV Portal</span>
+                  <span>Explore Interactive Demo</span>
                   <ArrowRight className="w-5 h-5 text-stone-950 group-hover:translate-x-1.5 transition-transform stroke-[2.5]" />
                 </button>
 
                 <button
                   onClick={onOpenReportModal}
-                  className="px-5 py-3.5 rounded-2xl border border-stone-800 bg-stone-900/90 hover:bg-stone-800 text-stone-200 text-xs sm:text-sm font-bold transition flex items-center gap-2 hover:border-stone-700"
-                  title="Audit-Ready Field Verification Report Package"
+                  className="px-5 py-3.5 rounded-2xl border border-stone-800 bg-stone-900/90 hover:bg-stone-800 text-stone-200 text-xs sm:text-sm font-bold transition flex items-center gap-2 hover:border-stone-700 shadow-md"
+                  title="Audit-Ready Field Evidence Report Dossier (Not Independently Verified)"
                 >
                   <FileCheck2 className="w-4 h-4 text-emerald-400" />
-                  <span>Sample Field Verification Report</span>
+                  <span>Sample Field Evidence Report</span>
+                  <span className="text-[10px] text-amber-300 font-mono">(Not Verified)</span>
                 </button>
 
                 <button
@@ -269,236 +324,330 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                   <Bot className="w-4 h-4 text-emerald-400" />
                   <span>AI In-App Assistant</span>
                 </button>
+
+                {onOpenAlphaLaunchModal && (
+                  <button
+                    onClick={onOpenAlphaLaunchModal}
+                    className="px-4 py-3.5 rounded-2xl border border-emerald-700/80 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 text-xs sm:text-sm font-bold transition flex items-center gap-2"
+                    title="PRD-18 Alpha Launch Readiness & 5-Step Journey Verifier"
+                  >
+                    <Rocket className="w-4 h-4 text-emerald-400" />
+                    <span>Alpha Readiness</span>
+                    <span className="text-[10px] font-mono text-emerald-400 border border-emerald-800 bg-emerald-950 px-1 py-0.2 rounded">PRD-18</span>
+                  </button>
+                )}
               </div>
 
-              {/* Trust & Live Stats Badges */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-stone-800/80">
-                <div className="bg-stone-900/60 border border-stone-800/60 p-3 rounded-xl">
-                  <div className="text-xl font-extrabold text-stone-100 font-mono">184,000+</div>
-                  <div className="text-[11px] text-stone-400 font-medium">Acres Monitored</div>
+              {/* PRD-17 Defensible Science Metrics Badges with Three Data States (S-1, S-5, S-6) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-6 border-t border-stone-800/80">
+                <div className="bg-stone-900/60 border border-stone-800/60 p-3 rounded-xl space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xl font-extrabold text-stone-100 font-mono">12,450+</div>
+                    <DataStateBadge state="observed" />
+                  </div>
+                  <div className="text-[11px] text-stone-300 font-medium">Demo Enrolled Acres</div>
+                  <div className="text-[10px] text-stone-500 leading-tight">4 Regional Sample Farms</div>
                 </div>
-                <div className="bg-stone-900/60 border border-stone-800/60 p-3 rounded-xl">
-                  <div className="text-xl font-extrabold text-emerald-400 font-mono">0.42–0.55</div>
-                  <div className="text-[11px] text-stone-400 font-medium">tCO₂e / Acre / Yr</div>
+
+                <div className="bg-stone-900/60 border border-stone-800/60 p-3 rounded-xl space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xl font-extrabold text-emerald-400 font-mono">0.42–0.55</div>
+                    <DataStateBadge state="modeled" uncertainty="±22%" />
+                  </div>
+                  <div className="text-[11px] text-stone-300 font-medium">tCO₂e / ac / yr (Worked Ex.)</div>
+                  <div className="text-[10px] text-stone-500 leading-tight">Midwest Mollisol Benchmark</div>
                 </div>
-                <div className="bg-stone-900/60 border border-stone-800/60 p-3 rounded-xl">
-                  <div className="text-xl font-extrabold text-stone-100 font-mono">12-Day</div>
-                  <div className="text-[11px] text-stone-400 font-medium">Sentinel-2 Revisit</div>
+
+                <div className="bg-stone-900/60 border border-stone-800/60 p-3 rounded-xl space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xl font-extrabold text-stone-100 font-mono">12-Day</div>
+                    <DataStateBadge state="observed" />
+                  </div>
+                  <div className="text-[11px] text-stone-300 font-medium">Platform Update Interval</div>
+                  <div className="text-[10px] text-stone-500 leading-tight">Sentinel-2 5-day return buffered</div>
                 </div>
-                <div className="bg-stone-900/60 border border-stone-800/60 p-3 rounded-xl">
-                  <div className="text-xl font-extrabold text-amber-400 font-mono">ISO 14064-3</div>
-                  <div className="text-[11px] text-stone-400 font-medium">Audit Verification</div>
+
+                <div className="bg-stone-900/60 border border-stone-800/60 p-3 rounded-xl space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-extrabold text-amber-300 font-mono">Evidence Dossier</div>
+                    <DataStateBadge state="modeled" />
+                  </div>
+                  <div className="text-[11px] text-stone-300 font-medium">Audit-Ready Dossier</div>
+                  <div className="text-[10px] text-amber-400/90 leading-tight">Not Independently Verified</div>
                 </div>
+              </div>
+
+              {/* PRD-17 S-7: Adjacent Qualifications Box */}
+              <div className="p-3 rounded-xl bg-stone-900/80 border border-stone-800/90 text-[11px] text-stone-400 flex items-start gap-2">
+                <Info className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  <strong>Scientific Methodology Note (PRD-17):</strong> Optical vegetation metrics are <em>observed</em> via Sentinel-2 MSI (10m). Root-zone soil moisture is <em>modeled</em> (0–100cm, ±18% uncertainty) using radar backscatter and soil texture physics. Carbon sequestration is <em>modeled</em> using empirical factor equations calibrated to USDA COMET-Farm v1.4 and IPCC Tier 1 defaults (±22% uncertainty). All deliverables are unverified evidence dossiers until audited by an accredited verifier.
+                </p>
               </div>
             </div>
 
-            {/* Right Column: Interactive Login & Account Management Box */}
-            <div className="lg:col-span-5">
+            {/* Right Column: Clear Distinction Between Interactive Demo & Registered Sign-In */}
+            <div className="lg:col-span-5" id="auth-card-anchor">
               <div className="bg-stone-900/90 border border-stone-800 rounded-3xl p-6 sm:p-7 shadow-2xl shadow-black relative overflow-hidden backdrop-blur-sm">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-lime-400 to-emerald-600" />
 
-                {/* Header of Login Card */}
+                {/* Mode Selector Header: Demo Sandbox vs Registered Account Sign-In */}
                 <div className="flex items-center justify-between pb-4 border-b border-stone-800">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-xl bg-stone-800 text-emerald-400 border border-stone-700">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-stone-100">Portal Authentication</h3>
-                      <p className="text-[11px] text-stone-400">Sign in to your role workspace</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/60">
-                    MFA ENFORCED
-                  </span>
-                </div>
-
-                {/* 1-Click Demo Profiles Bar */}
-                <div className="py-4 space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 block">
-                    Fast 1-Click Demo Access
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="flex bg-stone-950 p-1 rounded-2xl border border-stone-800 w-full gap-1">
                     <button
                       type="button"
-                      onClick={() => handleSelectDemoRole('farmer')}
-                      className={`p-2.5 rounded-xl border text-left transition flex flex-col gap-1 ${
-                        selectedDemoRole === 'farmer'
-                          ? 'border-emerald-500 bg-emerald-950/40 text-stone-100'
-                          : 'border-stone-800 bg-stone-950/40 text-stone-400 hover:text-stone-200 hover:border-stone-700'
+                      onClick={() => setAuthCardMode('demo')}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        authCardMode === 'demo'
+                          ? 'bg-emerald-600 text-white shadow'
+                          : 'text-stone-400 hover:text-stone-200'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <Tractor className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-[9px] font-mono text-emerald-400 font-bold">2,450 ac</span>
-                      </div>
-                      <span className="text-xs font-bold leading-tight truncate">Farmer</span>
-                      <span className="text-[10px] text-stone-500 truncate">Dale Vance</span>
+                      <Sparkles className="w-3.5 h-3.5 text-lime-300" />
+                      <span>Live Sandbox Demo</span>
                     </button>
-
                     <button
                       type="button"
-                      onClick={() => handleSelectDemoRole('agronomist')}
-                      className={`p-2.5 rounded-xl border text-left transition flex flex-col gap-1 ${
-                        selectedDemoRole === 'agronomist'
-                          ? 'border-emerald-500 bg-emerald-950/40 text-stone-100'
-                          : 'border-stone-800 bg-stone-950/40 text-stone-400 hover:text-stone-200 hover:border-stone-700'
+                      onClick={() => setAuthCardMode('signin')}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        authCardMode === 'signin'
+                          ? 'bg-stone-800 text-stone-100 shadow'
+                          : 'text-stone-400 hover:text-stone-200'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <Users className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-[9px] font-mono text-emerald-400 font-bold">14 Clients</span>
-                      </div>
-                      <span className="text-xs font-bold leading-tight truncate">Agronomist</span>
-                      <span className="text-[10px] text-stone-500 truncate">Dr. Rostova</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectDemoRole('corporate')}
-                      className={`p-2.5 rounded-xl border text-left transition flex flex-col gap-1 ${
-                        selectedDemoRole === 'corporate'
-                          ? 'border-emerald-500 bg-emerald-950/40 text-stone-100'
-                          : 'border-stone-800 bg-stone-950/40 text-stone-400 hover:text-stone-200 hover:border-stone-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-[9px] font-mono text-emerald-400 font-bold">Scope 3</span>
-                      </div>
-                      <span className="text-xs font-bold leading-tight truncate">Corporate</span>
-                      <span className="text-[10px] text-stone-500 truncate">Marcus Vance</span>
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Member Sign In</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Direct Login Form */}
-                <form onSubmit={handleSubmitLogin} className="space-y-3 pt-2">
-                  <div>
-                    <label className="text-[11px] font-bold text-stone-300 block mb-1">
-                      Account Email or Phone
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        value={emailInput}
-                        onChange={(e) => setEmailInput(e.target.value)}
-                        required
-                        className="w-full bg-stone-950 border border-stone-800 focus:border-emerald-500 focus:outline-none rounded-xl pl-9 pr-3 py-2 text-xs text-stone-100 transition"
-                        placeholder="dale@heartlandfarms.com"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-stone-300">
-                        Password
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => onOpenAuthModal('signin')}
-                        className="text-[10px] text-emerald-400 hover:underline"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={passwordInput}
-                        onChange={(e) => setPasswordInput(e.target.value)}
-                        required
-                        className="w-full bg-stone-950 border border-stone-800 focus:border-emerald-500 focus:outline-none rounded-xl pl-9 pr-9 py-2 text-xs text-stone-100 transition"
-                        placeholder="••••••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-300"
-                      >
-                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <label className="flex items-center gap-2 text-stone-400 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-3.5 h-3.5 rounded border-stone-700 bg-stone-950 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="text-[11px]">Remember credentials</span>
-                    </label>
-                    <span className="text-[10px] text-stone-500 font-mono">Demo: TerraSoil2026!</span>
-                  </div>
-
-                  {loginError && (
-                    <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                      <span>{loginError}</span>
-                    </div>
-                  )}
-
-                  {loginSuccessFeedback && (
-                    <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>{loginSuccessFeedback} — Launching...</span>
-                    </div>
-                  )}
-
-                  <div className="pt-2 flex flex-col gap-2">
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-bold text-xs tracking-wide shadow-md shadow-emerald-950 transition flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {isSubmitting ? (
-                        <span>Verifying Credentials...</span>
-                      ) : (
-                        <>
-                          <Lock className="w-3.5 h-3.5" />
-                          <span>Sign In &amp; Launch Portal</span>
-                        </>
-                      )}
-                    </button>
-
-                    <div className="relative text-center my-1">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-stone-800" />
+                {/* MODE 1: INSTANT DEMO SANDBOX (No credentials, no confusion, no MFA copy) */}
+                {authCardMode === 'demo' ? (
+                  <div className="pt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-stone-300 block">
+                          Select a Demonstration Persona
+                        </span>
+                        <p className="text-[11px] text-stone-500">
+                          Pre-loaded with real satellite passes and field records.
+                        </p>
                       </div>
-                      <span className="relative px-2 bg-stone-900 text-[10px] uppercase font-bold text-stone-500">
-                        Or enter directly
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/80 font-semibold">
+                        Instant Sandbox
                       </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDemoRole('farmer')}
+                        className={`p-3 rounded-2xl border text-left transition flex flex-col gap-1 ${
+                          selectedDemoRole === 'farmer'
+                            ? 'border-emerald-500 bg-emerald-950/40 text-stone-100 shadow-md shadow-emerald-950'
+                            : 'border-stone-800 bg-stone-950/50 text-stone-400 hover:text-stone-200 hover:border-stone-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Tractor className="w-4 h-4 text-emerald-400" />
+                          <span className="text-[9px] font-mono text-emerald-400 font-bold">2,450 ac</span>
+                        </div>
+                        <span className="text-xs font-bold leading-tight">Farmer</span>
+                        <span className="text-[10px] text-stone-500 truncate">Dale Vance</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDemoRole('agronomist')}
+                        className={`p-3 rounded-2xl border text-left transition flex flex-col gap-1 ${
+                          selectedDemoRole === 'agronomist'
+                            ? 'border-emerald-500 bg-emerald-950/40 text-stone-100 shadow-md shadow-emerald-950'
+                            : 'border-stone-800 bg-stone-950/50 text-stone-400 hover:text-stone-200 hover:border-stone-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Users className="w-4 h-4 text-emerald-400" />
+                          <span className="text-[9px] font-mono text-emerald-400 font-bold">14 Clients</span>
+                        </div>
+                        <span className="text-xs font-bold leading-tight">Agronomist</span>
+                        <span className="text-[10px] text-stone-500 truncate">Dr. Rostova</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDemoRole('corporate')}
+                        className={`p-3 rounded-2xl border text-left transition flex flex-col gap-1 ${
+                          selectedDemoRole === 'corporate'
+                            ? 'border-emerald-500 bg-emerald-950/40 text-stone-100 shadow-md shadow-emerald-950'
+                            : 'border-stone-800 bg-stone-950/50 text-stone-400 hover:text-stone-200 hover:border-stone-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Building2 className="w-4 h-4 text-emerald-400" />
+                          <span className="text-[9px] font-mono text-emerald-400 font-bold">Scope 3</span>
+                        </div>
+                        <span className="text-xs font-bold leading-tight">Corporate</span>
+                        <span className="text-[10px] text-stone-500 truncate">Marcus Vance</span>
+                      </button>
+                    </div>
+
+                    {/* Persona Specific Preview Highlight */}
+                    <div className="p-3 rounded-xl bg-stone-950/70 border border-stone-800 text-[11px] space-y-1">
+                      <div className="font-semibold text-stone-200 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>
+                          {selectedDemoRole === 'farmer' && 'Heartland Family Farms — 2,450 acres, 8 active fields'}
+                          {selectedDemoRole === 'agronomist' && 'Midwest Agronomy Consulting — 14 client operations'}
+                          {selectedDemoRole === 'corporate' && 'GrainCorp ESG Procurement — River Basin Scope 3 Insetting'}
+                        </span>
+                      </div>
+                      <p className="text-stone-400 text-[10px] leading-relaxed">
+                        {selectedDemoRole === 'farmer' && 'Full access to boundary editing, modeled root-zone moisture anomalies, and empirical practice carbon calculations.'}
+                        {selectedDemoRole === 'agronomist' && 'Multi-client portfolio switcher, GPS soil photo scouting, and white-label Field Evidence Report generation.'}
+                        {selectedDemoRole === 'corporate' && 'Supply shed aggregation, Scope 3 emission factors, and immutable cryptographic audit trails.'}
+                      </p>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => handleQuickLaunchAs(selectedDemoRole)}
-                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-stone-800 to-stone-850 hover:bg-stone-750 text-emerald-400 font-extrabold text-xs tracking-wide border border-stone-700 hover:border-emerald-600/50 transition flex items-center justify-center gap-2 group"
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-lime-400 hover:from-emerald-400 hover:to-lime-300 text-stone-950 font-black text-xs sm:text-sm tracking-wide shadow-lg shadow-emerald-950/80 active:scale-[0.99] transition-all flex items-center justify-center gap-2 group"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-lime-400" />
-                      <span>Start Now as {selectedDemoRole.toUpperCase()}</span>
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                      <Sparkles className="w-4 h-4 text-stone-950 stroke-[2.5]" />
+                      <span>Enter Sandbox as {selectedDemoRole.toUpperCase()}</span>
+                      <ArrowRight className="w-4 h-4 text-stone-950 group-hover:translate-x-1 transition-transform stroke-[2.5]" />
                     </button>
-                  </div>
-                </form>
 
-                {/* Footer of Card */}
-                <div className="mt-4 pt-3 border-t border-stone-800/80 flex items-center justify-between text-[11px] text-stone-400">
-                  <span>Don't have an account?</span>
-                  <button
-                    onClick={() => onOpenAuthModal('signup')}
-                    className="text-emerald-400 font-bold hover:underline flex items-center gap-1"
-                  >
-                    <span>Register New Farm</span>
-                    <ChevronRight className="w-3 h-3" />
-                  </button>
-                </div>
+                    <p className="text-[10px] text-center text-stone-500">
+                      No sign-up or credit card required. Evaluates all interactive features safely in your browser.
+                    </p>
+                  </div>
+                ) : (
+                  /* MODE 2: REGISTERED MEMBER AUTHENTICATION */
+                  <form onSubmit={handleSubmitLogin} className="space-y-3 pt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-stone-300">
+                        Production Member Login
+                      </span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 border border-stone-700">
+                        TLS 256-bit Secure
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-stone-300 block mb-1">
+                        Email Address or Phone
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={emailInput}
+                          onChange={(e) => setEmailInput(e.target.value)}
+                          required
+                          className="w-full bg-stone-950 border border-stone-800 focus:border-emerald-500 focus:outline-none rounded-xl pl-9 pr-3 py-2 text-xs text-stone-100 transition"
+                          placeholder="dale@heartlandfarms.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-stone-300">
+                          Password
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => onOpenAuthModal('signin')}
+                          className="text-[10px] text-emerald-400 hover:underline"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={passwordInput}
+                          onChange={(e) => setPasswordInput(e.target.value)}
+                          required
+                          className="w-full bg-stone-950 border border-stone-800 focus:border-emerald-500 focus:outline-none rounded-xl pl-9 pr-9 py-2 text-xs text-stone-100 transition"
+                          placeholder="••••••••••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-300"
+                        >
+                          {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <label className="flex items-center gap-2 text-stone-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded border-stone-700 bg-stone-950 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="text-[11px]">Remember on this device</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDemoRole('farmer')}
+                        className="text-[10px] text-emerald-400 hover:underline"
+                      >
+                        Auto-fill sample credentials
+                      </button>
+                    </div>
+
+                    {loginError && (
+                      <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                        <span>{loginError}</span>
+                      </div>
+                    )}
+
+                    {loginSuccessFeedback && (
+                      <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>{loginSuccessFeedback} — Launching...</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex flex-col gap-2">
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-bold text-xs tracking-wide shadow-md shadow-emerald-950 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {isSubmitting ? (
+                          <span>Verifying Credentials...</span>
+                        ) : (
+                          <>
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Sign In to Farm Account</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Footer of Card */}
+                    <div className="mt-4 pt-3 border-t border-stone-800/80 flex items-center justify-between text-[11px] text-stone-400">
+                      <span>Need a new account?</span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenAuthModal('signup')}
+                        className="text-emerald-400 font-bold hover:underline flex items-center gap-1"
+                      >
+                        <span>Register New Farm</span>
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
 
@@ -506,18 +655,20 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
         </div>
       </section>
 
-      {/* Audience Awareness Section (Farmer, Agronomist, Corporate) */}
+      {/* ========================================================================= */}
+      {/* SECTION 2: AUDIENCE AWARENESS & SPECIALIZED WORKSPACES */}
+      {/* ========================================================================= */}
       <section id="audiences" className="py-16 bg-stone-950 border-b border-stone-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-10">
             <h2 className="text-xs font-bold text-emerald-400 uppercase tracking-widest font-mono">
-              Tailored Workspaces
+              Tailored Solutions
             </h2>
             <p className="text-2xl sm:text-3xl font-extrabold text-stone-100 tracking-tight mt-1">
               Engineered for Every Agricultural Stakeholder
             </p>
             <p className="text-stone-400 text-xs sm:text-sm mt-2">
-              Select your persona to explore specialized capabilities, compliance workflows, and telemetry metrics.
+              Whether managing your own acreage, advising grower clients, or verifying supply chain emissions, TerraSoil adapts to your workflow.
             </p>
           </div>
 
@@ -580,7 +731,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                     onClick={() => handleQuickLaunchAs('farmer')}
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow"
                   >
-                    <span>Start as Farmer</span>
+                    <span>Launch as Farmer</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -588,23 +739,32 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                   <div className="p-4 rounded-2xl bg-stone-950/60 border border-stone-800/80 space-y-2">
                     <Map className="w-4 h-4 text-emerald-400" />
-                    <h4 className="text-xs font-bold text-stone-200">Interactive Field Boundaries</h4>
+                    <h4 className="text-xs font-bold text-stone-200 flex items-center justify-between">
+                      <span>Field Boundaries</span>
+                      <DataStateBadge state="observed" />
+                    </h4>
                     <p className="text-[11px] text-stone-400 leading-relaxed">
-                      Draw field boundaries directly on satellite maps or upload GeoJSON / Shapefiles to sync acreages.
+                      Draw boundaries directly on satellite maps or upload GeoJSON / Shapefiles to sync certified acreages and soil taxonomy automatically.
                     </p>
                   </div>
                   <div className="p-4 rounded-2xl bg-stone-950/60 border border-stone-800/80 space-y-2">
                     <Activity className="w-4 h-4 text-emerald-400" />
-                    <h4 className="text-xs font-bold text-stone-200">Soil Moisture &amp; NDVI Trends</h4>
+                    <h4 className="text-xs font-bold text-stone-200 flex items-center justify-between">
+                      <span>Vegetation &amp; Moisture</span>
+                      <DataStateBadge state="modeled" uncertainty="±18%" />
+                    </h4>
                     <p className="text-[11px] text-stone-400 leading-relaxed">
-                      Pulls 12-day Sentinel-2 indices and root-zone soil moisture without expensive manual hardware probes.
+                      Pulls 12-day Sentinel-2 optical canopy vigor (MSI 10m) alongside modeled root-zone soil moisture anomalies (0–100cm depth) without probe hardware.
                     </p>
                   </div>
                   <div className="p-4 rounded-2xl bg-stone-950/60 border border-stone-800/80 space-y-2">
                     <FileCheck2 className="w-4 h-4 text-emerald-400" />
-                    <h4 className="text-xs font-bold text-stone-200">Grant &amp; Credit Documentation</h4>
+                    <h4 className="text-xs font-bold text-stone-200 flex items-center justify-between">
+                      <span>Field Evidence Reports</span>
+                      <DataStateBadge state="modeled" />
+                    </h4>
                     <p className="text-[11px] text-stone-400 leading-relaxed">
-                      One-click audit-ready PDF reports ready for USDA NRCS EQIP, CSP grants, and carbon insetting contracts.
+                      Downloadable audit-ready evidence packages formatted for USDA NRCS EQIP, CSP grants, and corporate sustainability insetting contracts.
                     </p>
                   </div>
                 </div>
@@ -627,7 +787,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                     onClick={() => handleQuickLaunchAs('agronomist')}
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow"
                   >
-                    <span>Start as Agronomist</span>
+                    <span>Launch as Agronomist</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -637,21 +797,27 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                     <Layers className="w-4 h-4 text-emerald-400" />
                     <h4 className="text-xs font-bold text-stone-200">Multi-Farm Client Portfolio</h4>
                     <p className="text-[11px] text-stone-400 leading-relaxed">
-                      Switch seamlessly across dozens of enrolled client operations with consolidated acreage telemetry.
+                      Switch seamlessly across dozens of enrolled client operations with consolidated acreage telemetry and multi-seat permissions.
                     </p>
                   </div>
                   <div className="p-4 rounded-2xl bg-stone-950/60 border border-stone-800/80 space-y-2">
                     <Camera className="w-4 h-4 text-emerald-400" />
-                    <h4 className="text-xs font-bold text-stone-200">Geotagged Soil Photo Scouting</h4>
+                    <h4 className="text-xs font-bold text-stone-200 flex items-center justify-between">
+                      <span>Photo Scouting</span>
+                      <DataStateBadge state="observed" />
+                    </h4>
                     <p className="text-[11px] text-stone-400 leading-relaxed">
-                      Capture GPS-stamped field photos documenting earthworm biopores, slake aggregate stability, and roots.
+                      Capture GPS-stamped field photos documenting earthworm biopores, slake aggregate stability, and rooting depth with dated notes.
                     </p>
                   </div>
                   <div className="p-4 rounded-2xl bg-stone-950/60 border border-stone-800/80 space-y-2">
                     <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                    <h4 className="text-xs font-bold text-stone-200">Custom Branded PDF Deliverables</h4>
+                    <h4 className="text-xs font-bold text-stone-200 flex items-center justify-between">
+                      <span>Branded Dossiers</span>
+                      <DataStateBadge state="modeled" />
+                    </h4>
                     <p className="text-[11px] text-stone-400 leading-relaxed">
-                      White-label reports featuring consultant credentials, practice audits, and 5-year SOM accretion models.
+                      White-label Field Evidence Reports featuring consultant credentials, practice audits, and 5-year soil organic carbon accretion models.
                     </p>
                   </div>
                 </div>
@@ -674,7 +840,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                     onClick={() => handleQuickLaunchAs('corporate')}
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow"
                   >
-                    <span>Start as Corporate ESG</span>
+                    <span>Launch as Corporate ESG</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -684,21 +850,27 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
                     <h4 className="text-xs font-bold text-stone-200">Supply Shed Insetting Aggregation</h4>
                     <p className="text-[11px] text-stone-400 leading-relaxed">
-                      Aggregate emissions reductions across river basins and supplier tiers for Scope 3 SBTi submissions.
+                      Aggregate emissions reductions across river basins and supplier tiers for Scope 3 SBTi submissions and buyer sustainability audits.
                     </p>
                   </div>
                   <div className="p-4 rounded-2xl bg-stone-950/60 border border-stone-800/80 space-y-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <h4 className="text-xs font-bold text-stone-200">Immutable Audit Provenance</h4>
+                    <h4 className="text-xs font-bold text-stone-200 flex items-center justify-between">
+                      <span>Cryptographic Provenance</span>
+                      <DataStateBadge state="observed" />
+                    </h4>
                     <p className="text-[11px] text-stone-400 leading-relaxed">
-                      Complete cryptographic data lineage tracking every practice timestamp, satellite pass, and emission factor.
+                      Complete cryptographic data lineage tracking every practice timestamp, satellite pass, and emission factor formula version.
                     </p>
                   </div>
                   <div className="p-4 rounded-2xl bg-stone-950/60 border border-stone-800/80 space-y-2">
                     <Globe2 className="w-4 h-4 text-emerald-400" />
-                    <h4 className="text-xs font-bold text-stone-200">Global MRV Interoperability</h4>
+                    <h4 className="text-xs font-bold text-stone-200 flex items-center justify-between">
+                      <span>Audit-Ready Dossiers</span>
+                      <DataStateBadge state="modeled" />
+                    </h4>
                     <p className="text-[11px] text-stone-400 leading-relaxed">
-                      ISO 14064-3 and GHG Protocol Land Sector and Removals Guidance compliant data exports.
+                      Formatted for ISO 14064-3 third-party verification bodies and GHG Protocol Land Sector and Removals Guidance compliance.
                     </p>
                   </div>
                 </div>
@@ -708,160 +880,386 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
         </div>
       </section>
 
-      {/* Platform Features Grid */}
-      <section id="features" className="py-16 bg-stone-900/30 border-b border-stone-800/80">
+      {/* ========================================================================= */}
+      {/* SECTION 3: HOW IT WORKS — 4-STEP END-TO-END MRV WORKFLOW */}
+      {/* ========================================================================= */}
+      <section id="how-it-works" className="py-16 bg-stone-900/30 border-b border-stone-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <h2 className="text-xs font-bold text-emerald-400 uppercase tracking-widest font-mono">
-              Core Capabilities
+              Simple 4-Step Process
             </h2>
             <p className="text-2xl sm:text-3xl font-extrabold text-stone-100 tracking-tight mt-1">
-              End-to-End Measurement, Reporting &amp; Verification
+              From Field Boundary to Audit-Ready Evidence
             </p>
             <p className="text-stone-400 text-xs sm:text-sm mt-2">
-              Everything required to transform sustainable field management into verifiable carbon assets.
+              How TerraSoil turns everyday farm management into verifiable environmental assets.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Feature 1 */}
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3 hover:border-emerald-700/60 transition group">
-              <div className="w-10 h-10 rounded-xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Map className="w-5 h-5" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
+            {/* Step 1 */}
+            <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 space-y-3 relative hover:border-emerald-700/60 transition group">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 font-mono font-bold flex items-center justify-center">
+                01
               </div>
-              <h3 className="text-base font-bold text-stone-100">Interactive Field GIS Mapping</h3>
+              <h3 className="text-base font-bold text-stone-100 flex items-center gap-2">
+                <Map className="w-4 h-4 text-emerald-400" />
+                <span>Map Boundaries</span>
+              </h3>
               <p className="text-xs text-stone-400 leading-relaxed">
-                Draw polygon boundaries or upload GeoJSON files. Inspect soil taxonomy, SOC stock baselines, and historical NDVI vegetation health overlays.
+                Draw polygon boundaries on satellite imagery or import Shapefiles/GeoJSON. Automatically syncs USDA SSURGO soil series and baseline SOC stock.
+              </p>
+              <DataStateBadge state="observed" />
+            </div>
+
+            {/* Step 2 (PRD-17 S-1 & S-2: Separate optical vs SAR radar) */}
+            <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 space-y-3 relative hover:border-emerald-700/60 transition group">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 font-mono font-bold flex items-center justify-center">
+                02
+              </div>
+              <h3 className="text-base font-bold text-stone-100 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-emerald-400" />
+                <span>Satellite Telemetry</span>
+              </h3>
+              <p className="text-xs text-stone-400 leading-relaxed">
+                Sentinel-2 MSI pulls 10m optical NDVI canopy vigor, while Sentinel-1 SAR models root-zone moisture on a 12-day composite platform update interval.
+              </p>
+              <div className="flex gap-1.5 flex-wrap">
+                <DataStateBadge state="observed" source="Sentinel-2" />
+                <DataStateBadge state="modeled" source="SAR Hydrology" />
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 space-y-3 relative hover:border-emerald-700/60 transition group">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 font-mono font-bold flex items-center justify-center">
+                03
+              </div>
+              <h3 className="text-base font-bold text-stone-100 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-emerald-400" />
+                <span>Log Practices</span>
+              </h3>
+              <p className="text-xs text-stone-400 leading-relaxed">
+                Record cover crops, no-till, rotational grazing, or fertilizer reductions. Store implementation timestamps and geotagged soil field photos.
+              </p>
+              <DataStateBadge state="observed" />
+            </div>
+
+            {/* Step 4 (PRD-17 S-6: Field Evidence Report) */}
+            <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 space-y-3 relative hover:border-emerald-700/60 transition group">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 font-mono font-bold flex items-center justify-center">
+                04
+              </div>
+              <h3 className="text-base font-bold text-stone-100 flex items-center gap-2">
+                <FileCheck2 className="w-4 h-4 text-emerald-400" />
+                <span>Field Evidence Dossier</span>
+              </h3>
+              <p className="text-xs text-stone-400 leading-relaxed">
+                Estimate sequestration tonnage (tCO₂e) with standard IPCC Tier 1 &amp; COMET-Farm v1.4 factors. Export audit-ready dossiers labeled as Not Independently Verified.
+              </p>
+              <DataStateBadge state="modeled" uncertainty="±22%" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* SECTION 4: SCIENCE, TELEMETRY & PLAIN-LANGUAGE JARGON BUSTER (PRD-17 S-2, S-3, S-4) */}
+      {/* ========================================================================= */}
+      <section id="science" className="py-16 bg-stone-950 border-b border-stone-800/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center max-w-3xl mx-auto">
+            <h2 className="text-xs font-bold text-emerald-400 uppercase tracking-widest font-mono">
+              Science &amp; Terminology
+            </h2>
+            <p className="text-2xl sm:text-3xl font-extrabold text-stone-100 tracking-tight mt-1">
+              Grounded Agronomic Science — Plainly Explained
+            </p>
+            <p className="text-stone-400 text-xs sm:text-sm mt-2">
+              Every metric is governed by a Three-State Label: Observed, Modeled, or Independently Verified.
+            </p>
+          </div>
+
+          {/* Jargon Buster Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {/* Card 1: SOC */}
+            <div className="p-5 rounded-3xl bg-stone-900/80 border border-stone-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-emerald-300">SOC (Soil Organic Carbon)</h3>
+                <DataStateBadge state="modeled" source="SSURGO / Soil Lab" />
+              </div>
+              <p className="text-xs text-stone-300 leading-relaxed">
+                The measurable amount of carbon stored in topsoil organic matter. Baselines start from USDA SSURGO soil taxonomy and update with physical soil lab core tests when uploaded.
               </p>
             </div>
 
-            {/* Feature 2 */}
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3 hover:border-emerald-700/60 transition group">
-              <div className="w-10 h-10 rounded-xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Activity className="w-5 h-5" />
+            {/* Card 2: NDVI (S-1 & S-2) */}
+            <div className="p-5 rounded-3xl bg-stone-900/80 border border-stone-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-emerald-300">NDVI (Vegetation Index)</h3>
+                <DataStateBadge state="observed" source="Sentinel-2 MSI 10m" />
               </div>
-              <h3 className="text-base font-bold text-stone-100">Satellite Telemetry &amp; 6-Mo Trends</h3>
-              <p className="text-xs text-stone-400 leading-relaxed">
-                Sentinel-2 optical indices paired with 26-week weekly precipitation and temperature charts, root-zone moisture alerts, and yield projections.
+              <p className="text-xs text-stone-300 leading-relaxed">
+                Normalized Difference Vegetation Index (ranging 0.0 to 1.0) derived directly from Sentinel-2 MSI near-infrared and red light reflectance. Measures live green canopy vigor and crop biomass density on a 12-day composite interval.
               </p>
             </div>
 
-            {/* Feature 3 */}
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3 hover:border-emerald-700/60 transition group">
-              <div className="w-10 h-10 rounded-xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Calendar className="w-5 h-5" />
+            {/* Card 3: Insetting vs Offsetting */}
+            <div className="p-5 rounded-3xl bg-stone-900/80 border border-stone-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-emerald-300">Carbon Insetting</h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">
+                  Scope 3 Framework
+                </span>
               </div>
-              <h3 className="text-base font-bold text-stone-100">Regenerative Practice Ledger</h3>
-              <p className="text-xs text-stone-400 leading-relaxed">
-                Log cover crops, no-till, fertilizer reduction, and rotational grazing with audit timestamps, implementation dates, and reduction factors.
+              <p className="text-xs text-stone-300 leading-relaxed">
+                Reducing or sequestering emissions <strong>inside</strong> a company's own agricultural supply sheds (Scope 3 GHG), directly supporting the farmers they buy from — unlike offsets which buy credits from unrelated external projects.
               </p>
             </div>
 
-            {/* Feature 4 */}
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3 hover:border-emerald-700/60 transition group">
-              <div className="w-10 h-10 rounded-xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <BarChart3 className="w-5 h-5" />
+            {/* Card 4: IPCC Tier 1 & COMET-Farm (S-4 Factor Disclosure) */}
+            <div className="p-5 rounded-3xl bg-stone-900/80 border border-stone-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-emerald-300">IPCC Tier 1 / COMET-Farm Factors</h3>
+                <DataStateBadge state="modeled" uncertainty="±22%" />
               </div>
-              <h3 className="text-base font-bold text-stone-100">COMET-Farm &amp; IPCC Modeling</h3>
-              <p className="text-xs text-stone-400 leading-relaxed">
-                Transparent carbon sequestration formulas (metric tons CO₂e/acre/year) with live carbon pricing sliders and water retention gain estimates.
+              <p className="text-xs text-stone-300 leading-relaxed">
+                TerraSoil runs an empirical factor calculation engine calibrated to published USDA COMET-Farm v1.4 regional coefficients and IPCC Tier 1 defaults. It does not run live DayCent kinetic process simulations, which require full COMET-Farm platform export.
               </p>
             </div>
 
-            {/* Feature 5 */}
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3 hover:border-emerald-700/60 transition group">
-              <div className="w-10 h-10 rounded-xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Camera className="w-5 h-5" />
+            {/* Card 5: MRV */}
+            <div className="p-5 rounded-3xl bg-stone-900/80 border border-stone-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-emerald-300">MRV Framework</h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700">
+                  Standard Process
+                </span>
               </div>
-              <h3 className="text-base font-bold text-stone-100">Geotagged Soil Camera Scouting</h3>
-              <p className="text-xs text-stone-400 leading-relaxed">
-                Take GPS-stamped photos of soil aggregates, earthworm biopores, and root depth directly on the field map with dated agronomist notes.
+              <p className="text-xs text-stone-300 leading-relaxed">
+                Measurement, Reporting, and Verification: the internationally recognized three-part process that ensures climate claims are based on empirical boundary mapping, transparent calculation records, and third-party verifiable evidence packages.
               </p>
             </div>
 
-            {/* Feature 6 */}
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3 hover:border-emerald-700/60 transition group">
-              <div className="w-10 h-10 rounded-xl bg-emerald-950/70 border border-emerald-800 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <FileCheck2 className="w-5 h-5" />
+            {/* Card 6: Root-Zone Moisture (S-3 Modeled Root-Zone Disclosure) */}
+            <div className="p-5 rounded-3xl bg-stone-900/80 border border-stone-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-emerald-300">Modeled Root-Zone Moisture</h3>
+                <DataStateBadge state="modeled" uncertainty="±18%" />
               </div>
-              <h3 className="text-base font-bold text-stone-100">Field Verification Reports (Audit-Ready)</h3>
-              <p className="text-xs text-stone-400 leading-relaxed">
-                Generate downloadable, audit-ready evidence packages with verified emission factors, boundary maps, and practice logs for third-party verifiers.
+              <p className="text-xs text-stone-300 leading-relaxed">
+                Radar skin-depth microwave observations (Sentinel-1 SAR) combined with soil texture hydraulic functions and water-balance equations model moisture in the top 0–100cm (±18% uncertainty). It is an inferred model, not a direct physical probe reading.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Pricing & Plans Section (Matching System Prompt KB & PRD Packaging Ladder) */}
+      {/* ========================================================================= */}
+      {/* SECTION 5: GEOGRAPHIC SCOPE & GROWER DATA RIGHTS COVENANT */}
+      {/* ========================================================================= */}
+      <section id="trust" className="py-16 bg-stone-900/30 border-b border-stone-800/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            
+            {/* Left: Geographic Scope */}
+            <div className="lg:col-span-6 space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-800/60 text-cyan-400 text-xs font-semibold">
+                <Globe2 className="w-4 h-4" />
+                <span>Geographic Scope &amp; Calibration</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-100 tracking-tight">
+                Global Satellite Telemetry, Regionally Calibrated Soils
+              </h2>
+              <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
+                TerraSoil monitors agricultural parcels worldwide using European Space Agency Sentinel-2 optical MSI (10m) and Sentinel-1 radar at 20-meter resolution.
+              </p>
+              
+              <div className="space-y-3 pt-2">
+                <div className="p-3.5 rounded-2xl bg-stone-900 border border-stone-800 space-y-1">
+                  <div className="text-xs font-bold text-emerald-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>North America &amp; US Croplands</span>
+                    </span>
+                    <DataStateBadge state="modeled" source="USDA SSURGO" />
+                  </div>
+                  <p className="text-[11px] text-stone-400 leading-relaxed">
+                    Integrated with USDA-NRCS SSURGO soil series, state parcel GIS layers, and USDA COMET-Farm v1.4 cropland coefficients.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-stone-900 border border-stone-800 space-y-1">
+                  <div className="text-xs font-bold text-emerald-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>Europe &amp; International Expansion</span>
+                    </span>
+                    <DataStateBadge state="modeled" source="ESDAC / IPCC" />
+                  </div>
+                  <p className="text-[11px] text-stone-400 leading-relaxed">
+                    European Soil Data Centre (ESDAC) baselines and IPCC Tier 1 default climatic factors across Latin America and Oceania.
+                  </p>
+                </div>
+
+                {/* PRD-17 Claims Register Link Banner */}
+                <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-800/60 flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Scale className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Public Scientific Claims Register (PRD-17)</span>
+                    </span>
+                    <p className="text-[10px] text-stone-400">
+                      Every claim has a registered owner, primary source, method, and uncertainty margin.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsClaimsRegisterOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold transition shrink-0"
+                  >
+                    Inspect Register &rarr;
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Farmer Data Rights Covenant Card */}
+            <div className="lg:col-span-6">
+              <div className="bg-stone-900 border-2 border-emerald-800/80 rounded-3xl p-6 sm:p-7 shadow-2xl relative space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-950 border border-emerald-800 text-emerald-400 flex items-center justify-center">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-stone-100">Farmer Data Rights Covenant</h3>
+                    <span className="text-[11px] text-emerald-400 font-mono">You Own Your Farm Data &bull; 100% Guaranteed</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-stone-300 leading-relaxed">
+                  Growers should never fear that mapping their fields exposes private commercial data to commodity traders, chemical retailers, or land speculators. Our legal commitment is transparent and enforceable:
+                </p>
+
+                <ul className="space-y-2 text-xs text-stone-300">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>No Data Selling:</strong> We never monetize, sell, or license your field boundaries or yield estimates.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Full Export Portability:</strong> Export your boundaries, telemetry history, and calculations anytime as GeoJSON, CSV, or PDF.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Explicit Sharing Permissions:</strong> Your data is never shared with agronomists or corporate buyers without your explicit consent.</span>
+                  </li>
+                </ul>
+
+                <div className="pt-2 flex flex-wrap gap-2.5">
+                  <button
+                    onClick={() => openLegalModalWithTab('data_rights')}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow"
+                  >
+                    <Database className="w-3.5 h-3.5" />
+                    <span>Read Data Rights Covenant</span>
+                  </button>
+
+                  <button
+                    onClick={() => openLegalModalWithTab('privacy')}
+                    className="px-3.5 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 font-semibold text-xs transition"
+                  >
+                    Privacy Policy
+                  </button>
+
+                  <button
+                    onClick={() => openLegalModalWithTab('terms')}
+                    className="px-3.5 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 font-semibold text-xs transition"
+                  >
+                    Terms &amp; Disclaimers
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* SECTION 6: TRANSPARENT PRICING & STANDALONE EVIDENCE OPTION (S-6 Field Evidence Report) */}
+      {/* ========================================================================= */}
       <section id="pricing" className="py-16 bg-stone-950 border-b border-stone-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="text-center max-w-3xl mx-auto space-y-3">
             <h2 className="text-xs font-bold text-emerald-400 uppercase tracking-widest font-mono">
-              Pricing Tiers &amp; Packaging Architecture
+              Transparent Plans &amp; Pricing
             </h2>
             <p className="text-2xl sm:text-3xl font-extrabold text-stone-100 tracking-tight">
-              Unlock Business Value at Every Agricultural Scale
+              Predictable Value at Every Agricultural Scale
             </p>
             <p className="text-stone-400 text-xs sm:text-sm">
-              Progression ladder: from managing your land, to managing your clients, to managing your supply chain, to global program compliance.
+              From individual family farms, to multi-client advisory practices, to global Scope 3 corporate supply sheds.
             </p>
 
-            {/* Progression Narrative Ladder Strip (§1, §9) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-stone-900/60 border border-stone-800 p-2 rounded-2xl text-left text-xs mt-3">
-              <div className="p-2 rounded-xl bg-stone-950 border border-stone-800">
-                <div className="text-emerald-400 font-bold font-mono text-[10px]">1. FARM</div>
-                <div className="text-stone-200 font-semibold text-[11px]">Manage your land</div>
-                <div className="text-stone-400 text-[10px]">Explorer &bull; Basic</div>
-              </div>
-              <div className="p-2 rounded-xl bg-stone-950 border border-stone-800">
-                <div className="text-emerald-400 font-bold font-mono text-[10px]">2. PROFESSIONAL</div>
-                <div className="text-stone-200 font-semibold text-[11px]">Manage clients</div>
-                <div className="text-stone-400 text-[10px]">Agronomist Platform</div>
-              </div>
-              <div className="p-2 rounded-xl bg-stone-950 border border-stone-800">
-                <div className="text-cyan-400 font-bold font-mono text-[10px]">3. CORPORATE</div>
-                <div className="text-stone-200 font-semibold text-[11px]">Manage supply chain</div>
-                <div className="text-stone-400 text-[10px]">Scope 3 Decarbonization</div>
-              </div>
-              <div className="p-2 rounded-xl bg-stone-950 border border-stone-800">
-                <div className="text-amber-400 font-bold font-mono text-[10px]">4. ENTERPRISE</div>
-                <div className="text-stone-200 font-semibold text-[11px]">Manage Ag program</div>
-                <div className="text-stone-400 text-[10px]">Custom Architecture</div>
-              </div>
+            {/* Billing Period Switcher */}
+            <div className="inline-flex items-center gap-2 p-1 rounded-2xl bg-stone-900 border border-stone-800 mt-2">
+              <button
+                type="button"
+                onClick={() => setBillingPeriod('monthly')}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition ${
+                  billingPeriod === 'monthly' ? 'bg-emerald-600 text-white' : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                Monthly Billing
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingPeriod('annual')}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  billingPeriod === 'annual' ? 'bg-emerald-600 text-white' : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <span>Annual Billing</span>
+                <span className="text-[10px] font-mono bg-lime-400 text-stone-950 font-black px-1.5 py-0.2 rounded-full">
+                  Save 20%
+                </span>
+              </button>
             </div>
           </div>
 
-          {/* Core 5-Tier Ladder Grid with Balanced Visual Hierarchy (§9) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* Pricing Ladder Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             
-            {/* 1. Explorer (Free) */}
-            <div className="bg-stone-900/90 border border-stone-800 rounded-3xl p-5 flex flex-col justify-between space-y-4 hover:border-stone-700 transition">
+            {/* Tier 1: Explorer (Free) */}
+            <div className="bg-stone-900/90 border border-stone-800 rounded-3xl p-6 flex flex-col justify-between space-y-4 hover:border-stone-700 transition">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-stone-400 uppercase bg-stone-800 px-2 py-0.5 rounded font-bold">Evaluation</span>
-                  <span className="text-[10px] text-stone-500 font-mono">P1 Tier</span>
+                  <span className="text-[10px] font-mono text-stone-400 uppercase bg-stone-800 px-2 py-0.5 rounded font-bold">
+                    Evaluation
+                  </span>
+                  <span className="text-[10px] text-stone-500 font-mono">Self-Serve</span>
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-stone-100">Explorer</h3>
-                  <p className="text-[11px] text-stone-400 mt-0.5">Test map features before paying.</p>
+                  <p className="text-[11px] text-stone-400 mt-0.5">Test map features before enrolling.</p>
                 </div>
                 <div className="flex items-baseline gap-1 pb-2 border-b border-stone-800">
                   <span className="text-3xl font-extrabold text-stone-100">$0</span>
-                  <span className="text-xs text-stone-400">/ free</span>
+                  <span className="text-xs text-stone-400">/ free forever</span>
                 </div>
                 <ul className="space-y-2 text-xs text-stone-300">
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
-                    <span>1 farm, 1–2 fields boundary GIS</span>
+                    <span>1 farm, up to 2 field boundaries</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
-                    <span>Basic Sentinel-2 imagery</span>
+                    <span>Basic Sentinel-2 imagery preview</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
-                    <span>Global Explorer Map benchmarks</span>
+                    <span>Soil series taxonomy lookup</span>
                   </li>
                 </ul>
               </div>
@@ -873,48 +1271,42 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
               </button>
             </div>
 
-            {/* 2. Basic - Farm Intelligence */}
-            <div className="bg-stone-900/90 border border-emerald-800/80 rounded-3xl p-5 flex flex-col justify-between space-y-4 hover:border-emerald-600 transition">
+            {/* Tier 2: Basic (Farm Intel) */}
+            <div className="bg-stone-900/90 border border-emerald-800/80 rounded-3xl p-6 flex flex-col justify-between space-y-4 hover:border-emerald-600 transition">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-emerald-400 uppercase bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded font-bold">Farm Intel</span>
-                  <span className="text-[10px] text-emerald-400 font-mono">P0 Core</span>
+                  <span className="text-[10px] font-mono text-emerald-400 uppercase bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded font-bold">
+                    Individual Farm
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-mono">Popular for Growers</span>
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-stone-100">Basic Tier</h3>
-                  <p className="text-[11px] text-stone-400 mt-0.5">Manage your land &amp; carbon.</p>
+                  <p className="text-[11px] text-stone-400 mt-0.5">Manage your land &amp; carbon records.</p>
                 </div>
                 <div className="flex items-baseline gap-1 pb-2 border-b border-stone-800">
-                  <span className="text-3xl font-extrabold text-stone-100">$29–$49</span>
+                  <span className="text-3xl font-extrabold text-stone-100">
+                    {billingPeriod === 'annual' ? '$31' : '$39'}
+                  </span>
                   <span className="text-xs text-stone-400">/ mo</span>
+                  <span className="text-[10px] text-stone-500 ml-1 font-mono">(or $0.50/ac/yr)</span>
                 </div>
-
-                {/* Flagship Feature: Farm Health Score */}
-                <div className="p-2 rounded-xl bg-emerald-950/60 border border-emerald-800/80 text-[10px] space-y-1">
-                  <div className="font-bold text-emerald-300 flex items-center justify-between">
-                    <span>Farm Health Score:</span>
-                    <span className="font-mono text-white bg-emerald-800 px-1 rounded">84/100</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1 text-[9px] text-stone-300 font-mono">
-                    <span>Soil: 88</span>
-                    <span>Water: 79</span>
-                    <span>Carbon: 85</span>
-                    <span>Data: 84</span>
-                  </div>
-                </div>
-
-                <ul className="space-y-1.5 text-xs text-stone-300">
+                <ul className="space-y-2 text-xs text-stone-300">
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                     <span>Up to 2,500 enrolled acres</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>12-Day NDVI &amp; moisture radar</span>
+                    <span>12-Day platform update interval telemetry</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Practice ROI &amp; cost tracking</span>
+                    <span>IPCC Tier 1 carbon estimation ledger</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Practice cost &amp; grant document generator</span>
                   </li>
                 </ul>
               </div>
@@ -922,49 +1314,47 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                 onClick={onStartNow}
                 className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-stone-950 font-extrabold text-xs transition shadow-md"
               >
-                Start Basic
+                Start Basic Plan
               </button>
             </div>
 
-            {/* 3. Professional - Agronomist Platform */}
-            <div className="bg-stone-900/90 border-2 border-emerald-500/80 rounded-3xl p-5 flex flex-col justify-between space-y-4 hover:border-emerald-400 transition relative">
+            {/* Tier 3: Professional (Agronomist) */}
+            <div className="bg-stone-900/90 border-2 border-emerald-500/80 rounded-3xl p-6 flex flex-col justify-between space-y-4 hover:border-emerald-400 transition relative">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-emerald-300 uppercase bg-emerald-950 border border-emerald-700 px-2 py-0.5 rounded font-bold">Advisor</span>
-                  <span className="text-[9px] text-emerald-400 font-bold">Most Popular</span>
+                  <span className="text-[10px] font-mono text-emerald-300 uppercase bg-emerald-950 border border-emerald-700 px-2 py-0.5 rounded font-bold">
+                    Advisors &amp; Consultants
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-900/50 px-2 py-0.5 rounded-full">
+                    Most Popular
+                  </span>
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-stone-100">Professional</h3>
-                  <p className="text-[11px] text-stone-400 mt-0.5">Manage multiple client farms.</p>
+                  <p className="text-[11px] text-stone-400 mt-0.5">Manage multiple client farm portfolios.</p>
                 </div>
                 <div className="flex items-baseline gap-1 pb-2 border-b border-stone-800">
-                  <span className="text-3xl font-extrabold text-emerald-400">$199</span>
+                  <span className="text-3xl font-extrabold text-emerald-400">
+                    {billingPeriod === 'annual' ? '$159' : '$199'}
+                  </span>
                   <span className="text-xs text-stone-400">/ mo</span>
                 </div>
-
-                {/* Flagship: AI Agronomist Assistant */}
-                <div className="p-2 rounded-xl bg-stone-950 border border-emerald-700/60 text-[10px] space-y-0.5">
-                  <div className="font-bold text-emerald-300 flex items-center gap-1">
-                    <Bot className="w-3 h-3 text-emerald-400" />
-                    <span>AI Agronomist Assistant</span>
-                  </div>
-                  <p className="text-stone-400 text-[9px] leading-tight">
-                    Natural language queries across all client operations.
-                  </p>
-                </div>
-
-                <ul className="space-y-1.5 text-xs text-stone-200">
+                <ul className="space-y-2 text-xs text-stone-200">
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                     <span>Unlimited fields &amp; 5 team seats</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>White-label branded PDF reports</span>
+                    <span>White-label branded Field Evidence Reports</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Practice scenario modeling</span>
+                    <span>Geotagged soil photo scouting tool</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>AI In-App Agronomist Assistant</span>
                   </li>
                 </ul>
               </div>
@@ -976,11 +1366,13 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
               </button>
             </div>
 
-            {/* 4. Corporate - Supply Chain Scope 3 */}
-            <div className="bg-stone-900/90 border border-cyan-800/80 rounded-3xl p-5 flex flex-col justify-between space-y-4 hover:border-cyan-600 transition">
+            {/* Tier 4: Corporate (Supply Chain Scope 3) */}
+            <div className="bg-stone-900/90 border border-cyan-800/80 rounded-3xl p-6 flex flex-col justify-between space-y-4 hover:border-cyan-600 transition">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-cyan-300 uppercase bg-cyan-950 border border-cyan-800 px-2 py-0.5 rounded font-bold">Supply Chain</span>
+                  <span className="text-[10px] font-mono text-cyan-300 uppercase bg-cyan-950 border border-cyan-800 px-2 py-0.5 rounded font-bold">
+                    Supply Chain
+                  </span>
                   <span className="text-[10px] text-cyan-400 font-mono font-bold">Scope 3</span>
                 </div>
                 <div>
@@ -988,24 +1380,15 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                   <p className="text-[11px] text-stone-400 mt-0.5">Manage supply shed insetting.</p>
                 </div>
                 <div className="flex items-baseline gap-1 pb-2 border-b border-stone-800">
-                  <span className="text-3xl font-extrabold text-cyan-300">$499+</span>
+                  <span className="text-3xl font-extrabold text-cyan-300">
+                    {billingPeriod === 'annual' ? '$399' : '$499'}
+                  </span>
                   <span className="text-xs text-stone-400">/ mo</span>
                 </div>
-
-                <div className="p-2 rounded-xl bg-cyan-950/60 border border-cyan-800/80 text-[10px] space-y-0.5">
-                  <div className="font-bold text-cyan-300 flex items-center gap-1">
-                    <Building2 className="w-3 h-3 text-cyan-400" />
-                    <span>Supplier Portal &amp; Scope 3</span>
-                  </div>
-                  <p className="text-stone-400 text-[9px] leading-tight">
-                    tCO₂e/tonne accounting across river basins.
-                  </p>
-                </div>
-
-                <ul className="space-y-1.5 text-xs text-stone-300">
+                <ul className="space-y-2 text-xs text-stone-300">
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
-                    <span>Unlimited supplier organizations</span>
+                    <span>Supply shed insetting aggregation</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
@@ -1013,7 +1396,11 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                   </li>
                   <li className="flex items-start gap-1.5">
                     <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
-                    <span>Executive ESG export suites</span>
+                    <span>GHG Protocol Land Sector export suite</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                    <span>Supplier onboarding portal &amp; API</span>
                   </li>
                 </ul>
               </div>
@@ -1021,96 +1408,50 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                 onClick={onOpenPricingModal}
                 className="w-full py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-600 text-white font-bold text-xs transition"
               >
-                Start Corporate
-              </button>
-            </div>
-
-            {/* 5. Enterprise - Custom Ag-Program */}
-            <div className="bg-stone-900/90 border border-amber-800/60 rounded-3xl p-5 flex flex-col justify-between space-y-4 hover:border-amber-600 transition">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-amber-300 uppercase bg-amber-950 border border-amber-800 px-2 py-0.5 rounded font-bold">Custom</span>
-                  <span className="text-[10px] text-amber-400 font-mono">Talk to Sales</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-stone-100">Enterprise</h3>
-                  <p className="text-[11px] text-stone-400 mt-0.5">Global multi-facility programs.</p>
-                </div>
-                <div className="flex items-baseline gap-1 pb-2 border-b border-stone-800">
-                  <span className="text-2xl font-extrabold text-amber-300">Custom</span>
-                  <span className="text-xs text-stone-400">/ SLA</span>
-                </div>
-
-                <div className="p-2 rounded-xl bg-amber-950/60 border border-amber-800/80 text-[10px] space-y-0.5">
-                  <div className="font-bold text-amber-300">SSO, SCIM &amp; ERP Integrations</div>
-                  <p className="text-stone-400 text-[9px] leading-tight">
-                    SAP, Oracle, John Deere Data Ops pipelines.
-                  </p>
-                </div>
-
-                <ul className="space-y-1.5 text-xs text-stone-300">
-                  <li className="flex items-start gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                    <span>Custom emission factor baselines</span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                    <span>Dedicated Agronomic Account Mgr</span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                    <span>Bespoke data retention policy</span>
-                  </li>
-                </ul>
-              </div>
-              <button
-                onClick={onOpenPricingModal}
-                className="w-full py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-amber-300 border border-amber-600/40 font-bold text-xs transition"
-              >
-                Talk to Sales
+                Contact Corporate Sales
               </button>
             </div>
 
           </div>
 
-          {/* Standalone Product: Field Verification Report ($99/field) with Rationale Callout (§5 P0) */}
+          {/* Standalone Product: Field Evidence Report ($99/field) with Rationale Callout (PRD-17 S-6) */}
           <div className="bg-stone-900 border-2 border-amber-500/80 rounded-3xl p-6 sm:p-7 max-w-4xl mx-auto shadow-2xl space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span className="text-[10px] font-mono text-amber-400 uppercase bg-amber-950 border border-amber-800 px-2 py-0.5 rounded font-bold">
-                  P0 Repositioned Product
+                  PRD-17 Assurance Standard
                 </span>
-                <h3 className="text-xl font-bold text-stone-100 mt-1">Field Verification Report ($99 / field)</h3>
+                <h3 className="text-xl font-bold text-stone-100 mt-1">Field Evidence Report ($99 / field)</h3>
                 <p className="text-xs text-stone-400 mt-0.5">
-                  Formerly titled "Audit Report" &bull; Zero subscription commitment required
+                  Single downloadable audit-ready dossier &bull; Zero subscription commitment required
                 </p>
               </div>
 
               <div className="text-right">
                 <span className="text-3xl font-extrabold text-amber-300 font-mono">$99</span>
-                <span className="text-xs text-stone-400 block">per field report</span>
+                <span className="text-xs text-stone-400 block">one-time per field</span>
               </div>
             </div>
 
-            {/* Rationale Callout Box */}
+            {/* Plain Rationale Box (PRD-17 S-6) */}
             <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-700/60 text-xs space-y-1 text-stone-300">
               <div className="flex items-center gap-1.5 font-bold text-amber-300">
                 <Scale className="w-4 h-4 text-amber-400" />
-                <span>Why "Field Verification Report" instead of "Audit Report"?</span>
+                <span>The Rationale: Why "Field Evidence Report" instead of "Verification Report"?</span>
               </div>
               <p className="text-[11px] leading-relaxed">
-                "Audit" legally implies a formal third-party assurance service. This product is actually an <strong>audit-ready evidence package</strong> containing field boundary geometry, Sentinel-2 NDVI satellite passes, soil carbon baselines, and calculation lineage. We renamed it to avoid false assurance implications while providing the exact empirical proof required by grant reviewers and certified verification bodies (Verra, Gold Standard, USDA).
+                Even the title "Verification Report" legally implies that formal third-party assurance has already occurred. This product provides the <strong>audit-ready evidence package</strong> containing verified boundary geometry, Sentinel-2 optical NDVI passes, soil carbon baselines, and calculation lineage. We title it <strong>Field Evidence Report</strong> to avoid false assurance claims, and prominently label all modeled estimates as <strong>"Not independently verified"</strong> unless formally audited by an accredited certifier.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs text-stone-300 pt-1">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Field boundary geometry &amp; acreage</span>
+                <span>Field polygon GIS &amp; certified acreage</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Sentinel-2 optical NDVI history</span>
+                <span>Sentinel-2 optical NDVI satellite history</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -1120,103 +1461,66 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
 
             <div className="pt-2 border-t border-stone-800 flex flex-wrap items-center justify-between gap-4">
               <p className="text-xs text-stone-400 italic">
-                "$99/field — One-time verification package. Build a professional evidence package for a field, farm, grant application, sustainability program, or buyer request."
+                Ideal for a single USDA NRCS EQIP or CSP grant application, or a one-time sustainability proof requested by your grain buyer.
               </p>
 
               <button
                 onClick={onOpenReportModal}
                 className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs transition flex items-center gap-2 shadow-lg"
               >
-                <span>Generate Field Report &rarr;</span>
+                <span>Generate Field Evidence Report &rarr;</span>
               </button>
             </div>
           </div>
 
-          {/* Monetization Expansion & Substantial Product Lines Showcase */}
-          <div className="bg-gradient-to-b from-stone-900 to-stone-950 border border-cyan-800/80 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-stone-800">
+          {/* Monetization Expansion & Add-On Modules Strip */}
+          <div className="bg-stone-900/50 border border-stone-800 rounded-3xl p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <span className="text-[10px] font-mono text-cyan-400 uppercase bg-cyan-950 border border-cyan-800 px-2 py-0.5 rounded font-bold">
-                  Monetization Expansion &amp; Product Lines
-                </span>
-                <h3 className="text-xl sm:text-2xl font-extrabold text-stone-100 mt-1">
-                  Custom Add-ons, Team Seats &amp; Enterprise Platforms
-                </h3>
-                <p className="text-xs text-stone-400 mt-0.5">
-                  Flexible seat-based team scaling, physical lab syncs, and standalone B2B product suites.
-                </p>
+                <h4 className="text-sm font-bold text-stone-200">Expandable Modules &amp; Add-Ons</h4>
+                <p className="text-xs text-stone-400">Tailor your workspace with specialized enterprise modules when ready.</p>
               </div>
-
               <button
                 onClick={onOpenPricingModal}
-                className="px-4 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-600 text-white font-bold text-xs transition flex items-center gap-1.5 shadow"
+                className="text-xs font-bold text-emerald-400 hover:underline flex items-center gap-1"
               >
-                <span>Explore Add-ons &amp; Seat Calculator</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>View Full 18-Dimension Comparison Table</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-stone-900/80 border border-stone-800 space-y-2">
-                <div className="flex items-center gap-2 text-cyan-400">
-                  <Lock className="w-4 h-4" />
-                  <h4 className="text-xs font-bold text-stone-100">Carbon Data Room</h4>
-                </div>
-                <p className="text-[11px] text-stone-400 leading-relaxed">
-                  Encrypted VDR for land deals, bank loans, and carbon credit buyers with NDA watermarking &amp; audit logs.
-                </p>
-                <span className="text-[10px] font-mono text-cyan-300 font-bold block pt-1">$149/mo or $49/field</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="p-3 rounded-2xl bg-stone-950/70 border border-stone-800 space-y-1">
+                <span className="text-xs font-bold text-stone-200 block">Carbon Data Room</span>
+                <p className="text-[10px] text-stone-400">Encrypted virtual data room for land deals, ag lending, and carbon buyers.</p>
+                <span className="text-[10px] text-emerald-400 font-mono font-bold">$149/mo</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-stone-900/80 border border-stone-800 space-y-2">
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <Award className="w-4 h-4" />
-                  <h4 className="text-xs font-bold text-stone-100">Grant Intelligence</h4>
-                </div>
-                <p className="text-[11px] text-stone-400 leading-relaxed">
-                  AI match engine for USDA NRCS EQIP ($25-45/ac), CSP, and REAP with pre-filled CPA-52 paperwork.
-                </p>
-                <span className="text-[10px] font-mono text-emerald-300 font-bold block pt-1">$79/mo module</span>
+              <div className="p-3 rounded-2xl bg-stone-950/70 border border-stone-800 space-y-1">
+                <span className="text-xs font-bold text-stone-200 block">Grant Intelligence</span>
+                <p className="text-[10px] text-stone-400">AI match engine for USDA NRCS EQIP ($25-45/ac), CSP, and state programs.</p>
+                <span className="text-[10px] text-emerald-400 font-mono font-bold">$79/mo</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-stone-900/80 border border-stone-800 space-y-2">
-                <div className="flex items-center gap-2 text-cyan-400">
-                  <Layers className="w-4 h-4" />
-                  <h4 className="text-xs font-bold text-stone-100">Carbon Program Tier</h4>
-                </div>
-                <p className="text-[11px] text-stone-400 leading-relaxed">
-                  Verra VM0042 developer portal managing registered crediting periods, 15% buffer pool deductions &amp; registry sync.
-                </p>
-                <span className="text-[10px] font-mono text-cyan-300 font-bold block pt-1">$299/mo developer suite</span>
+              <div className="p-3 rounded-2xl bg-stone-950/70 border border-stone-800 space-y-1">
+                <span className="text-xs font-bold text-stone-200 block">Carbon Program Tier</span>
+                <p className="text-[10px] text-stone-400">Verra VM0042 developer suite managing registered crediting periods.</p>
+                <span className="text-[10px] text-emerald-400 font-mono font-bold">$299/mo</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-stone-900/80 border border-stone-800 space-y-2">
-                <div className="flex items-center gap-2 text-cyan-400">
-                  <Code className="w-4 h-4" />
-                  <h4 className="text-xs font-bold text-stone-100">Data &amp; API Console</h4>
-                </div>
-                <p className="text-[11px] text-stone-400 leading-relaxed">
-                  High-throughput REST/GraphQL API platform, 1M req/mo rate limit, Webhooks &amp; John Deere OAuth sync.
-                </p>
-                <span className="text-[10px] font-mono text-cyan-300 font-bold block pt-1">$199/mo developer key</span>
+              <div className="p-3 rounded-2xl bg-stone-950/70 border border-stone-800 space-y-1">
+                <span className="text-xs font-bold text-stone-200 block">Data &amp; API Console</span>
+                <p className="text-[10px] text-stone-400">High-throughput REST/GraphQL API platform with John Deere data ops sync.</p>
+                <span className="text-[10px] text-emerald-400 font-mono font-bold">$199/mo</span>
               </div>
             </div>
-          </div>
-
-          {/* Call-to-Action to Open Full 18-Dimension Comparison Table Modal */}
-          <div className="text-center pt-2">
-            <button
-              onClick={onOpenPricingModal}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-stone-900 border border-stone-700 hover:border-emerald-500 text-stone-200 text-xs sm:text-sm font-bold transition hover:bg-stone-850"
-            >
-              <span>Explore Full 18-Dimension Comparison Table (§8)</span>
-              <ArrowRight className="w-4 h-4 text-emerald-400" />
-            </button>
           </div>
         </div>
       </section>
 
-      {/* FAQ & Knowledge Base (Directly adhering to system instructions) */}
+      {/* ========================================================================= */}
+      {/* SECTION 7: FAQ, COMPLIANCE DISCLAIMERS & CONVERSION FOOTER */}
+      {/* ========================================================================= */}
       <section id="faq" className="py-16 bg-stone-900/40 border-b border-stone-800/80">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="text-center">
@@ -1226,53 +1530,82 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
             <p className="text-2xl font-extrabold text-stone-100 tracking-tight mt-1">
               Frequently Asked Questions
             </p>
+            <p className="text-stone-400 text-xs sm:text-sm mt-1">
+              Direct, honest answers regarding data integrity, certification, and platform scope.
+            </p>
           </div>
 
           <div className="space-y-4">
+            {/* FAQ 1: Certification Guardrail */}
             <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-5 space-y-2">
               <h4 className="text-sm font-bold text-stone-100 flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>Is your carbon sequestration number certified?</span>
               </h4>
               <p className="text-xs text-stone-400 leading-relaxed pl-6">
-                No — it is an estimate based on standardized agronomic emission factors (such as IPCC Tier 1 and USDA COMET-Farm), not a certified laboratory measurement. When applying for certified carbon credit registries (e.g. Verra, Gold Standard), our Field Verification Reports (audit-ready evidence packages) serve as high-integrity supporting documentation for accredited third-party verification.
+                No — it is an estimate based on standardized agronomic emission factors (such as IPCC Tier 1 and USDA COMET-Farm v1.4), not a certified laboratory core measurement. If you need certified verification for a specific registry (such as Verra or Gold Standard), that typically requires an accredited third-party verifier. Our Field Evidence Reports provide the standardized, audit-ready supporting documentation required by those verifiers.
               </p>
             </div>
 
+            {/* FAQ 2: Payout Guardrail */}
             <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-5 space-y-2">
               <h4 className="text-sm font-bold text-stone-100 flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>How much will I get paid for switching to no-till or cover crops?</span>
               </h4>
               <p className="text-xs text-stone-400 leading-relaxed pl-6">
-                Payout eligibility and amounts depend on external grant programs (e.g., USDA NRCS EQIP, CSP) or private carbon credit buyer agreements. TerraSoil models your estimated carbon sequestration tonnage and provides standard pricing sensitivity ($15–$35/ton) to support your enrollment applications.
+                Payout eligibility and amounts depend on external grant programs (e.g., USDA NRCS EQIP, CSP) or private carbon-credit buyer agreements — TerraSoil does not set payout amounts. What we do is calculate your estimated carbon sequestration based on your logged practices, which you can use as empirical supporting documentation in grant and buyer applications.
               </p>
             </div>
 
+            {/* FAQ 3: Agronomic Replacement Guardrail */}
             <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-5 space-y-2">
               <h4 className="text-sm font-bold text-stone-100 flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>What is the difference between carbon offsetting and carbon insetting?</span>
+                <span>Does TerraSoil replace my agronomist or lawyer?</span>
               </h4>
               <p className="text-xs text-stone-400 leading-relaxed pl-6">
-                Offsetting involves purchasing carbon credits generated outside an organization's value chain. Carbon insetting refers to a corporation reducing or sequestering emissions directly within its own agricultural supply sheds (Scope 3 GHG reductions), directly benefiting the growers and landscapes they source from.
+                No. TerraSoil is a measurement and documentation tool, not a replacement for an agronomist, a certified carbon-credit verifier, or legal counsel. We provide empirical satellite telemetry and practice logs to empower you and your agronomist, but we do not give specific farm management directives or legal advice.
               </p>
             </div>
 
+            {/* FAQ 4: Carbon insetting vs offsetting */}
+            <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-5 space-y-2">
+              <h4 className="text-sm font-bold text-stone-100 flex items-center gap-2">
+                <HelpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>What is the difference between carbon insetting and offsetting?</span>
+              </h4>
+              <p className="text-xs text-stone-400 leading-relaxed pl-6">
+                Offsetting involves purchasing carbon credits generated outside an organization's value chain. Insetting refers to a corporation reducing emissions directly within its own agricultural supply sheds (Scope 3 GHG reductions), directly benefiting the growers and landscapes they source agricultural commodities from.
+              </p>
+            </div>
+
+            {/* FAQ 5: Satellite technology (S-1, S-2, S-3) */}
             <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-5 space-y-2">
               <h4 className="text-sm font-bold text-stone-100 flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>How are satellite NDVI and soil moisture calculated?</span>
               </h4>
               <p className="text-xs text-stone-400 leading-relaxed pl-6">
-                We pull multispectral imagery from the European Space Agency's Sentinel-2 constellation every ~12 days. Normalized Difference Vegetation Index (NDVI) measures vegetative greenness and canopy vigor, while microwave synthetic aperture radar (SAR) provides surface and root-zone moisture anomalies.
+                Optical NDVI is acquired directly from ESA Sentinel-2 multispectral MSI sensors (10-meter spatial resolution, 5-day nominal equatorial constellation revisit; refreshed on a 12-day composite platform update interval to ensure cloud-free scenes). Root-zone soil moisture (0–100cm) is modeled using microwave synthetic aperture radar (Sentinel-1 SAR) combined with soil texture hydraulic transfer functions (±18% uncertainty).
+              </p>
+            </div>
+
+            {/* FAQ 6: Geographic availability */}
+            <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-5 space-y-2">
+              <h4 className="text-sm font-bold text-stone-100 flex items-center gap-2">
+                <HelpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Where is TerraSoil available geographically?</span>
+              </h4>
+              <p className="text-xs text-stone-400 leading-relaxed pl-6">
+                Satellite monitoring is global with 10-meter spatial resolution. Soil carbon baselines and practice emission factors are currently calibrated for North American (US &amp; Canada via USDA-NRCS SSURGO) and European agricultural zones, with continuous regional calibration expansion.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Bottom Call to Action Banner */}
+      {/* Bottom Conversion Banner */}
       <section className="py-16 bg-gradient-to-b from-stone-950 to-stone-900 text-center relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 relative">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-lime-500 mx-auto flex items-center justify-center p-0.5 shadow-xl shadow-emerald-950/60">
@@ -1283,8 +1616,8 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
             Ready to Verify Your Soil Carbon?
           </h2>
 
-          <p className="text-stone-300 text-xs sm:text-sm max-w-xl mx-auto">
-            Join hundreds of regenerative farmers and agronomists using TerraSoil MRV Portal. Start mapping fields and documenting practices immediately.
+          <p className="text-stone-300 text-xs sm:text-sm max-w-xl mx-auto leading-relaxed">
+            Explore live Sentinel-2 satellite passes, soil carbon accretion curves, and practice logs in our interactive sandbox without signup.
           </p>
 
           <div className="pt-2 flex flex-wrap justify-center items-center gap-4">
@@ -1292,62 +1625,108 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
               onClick={onStartNow}
               className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-lime-400 hover:from-emerald-400 hover:to-lime-300 text-stone-950 font-black text-sm tracking-wide shadow-xl shadow-emerald-950/80 hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5"
             >
-              <span>Start Now</span>
+              <span>Launch Interactive Demo</span>
               <ArrowRight className="w-4 h-4 text-stone-950 stroke-[2.5]" />
             </button>
 
             <button
-              onClick={() => onOpenAuthModal('signin')}
+              onClick={() => {
+                setAuthCardMode('signin');
+                const element = document.getElementById('auth-card-anchor');
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                  onOpenAuthModal('signin');
+                }
+              }}
               className="px-6 py-3.5 rounded-2xl border border-stone-800 bg-stone-900 hover:bg-stone-800 text-stone-200 text-sm font-bold transition"
             >
-              Sign In to Existing Account
+              Sign In to Existing Farm
             </button>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-stone-950 border-t border-stone-800 text-xs text-stone-500 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-stone-300">TerraSoil Portal</span>
-            <span>&bull;</span>
-            <span>Measurement, Reporting &amp; Verification (MRV) SaaS</span>
+      {/* Comprehensive Footer with Legal & Data Rights Links */}
+      <footer className="bg-stone-950 border-t border-stone-800 text-xs text-stone-500 py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-stone-900">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center text-stone-950">
+                <Sprout className="w-3.5 h-3.5 stroke-[2.5]" />
+              </div>
+              <span className="font-bold text-stone-200">TerraSoil Portal</span>
+              <span className="text-stone-600">&bull;</span>
+              <span className="text-stone-400">Measurement, Reporting &amp; Verification (MRV) SaaS</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-5 text-stone-400">
+              <button
+                onClick={() => openLegalModalWithTab('data_rights')}
+                className="hover:text-emerald-400 transition font-medium"
+              >
+                Grower Data Rights
+              </button>
+              <button
+                onClick={() => openLegalModalWithTab('privacy')}
+                className="hover:text-stone-200 transition"
+              >
+                Privacy Policy
+              </button>
+              <button
+                onClick={() => openLegalModalWithTab('terms')}
+                className="hover:text-stone-200 transition"
+              >
+                Terms of Service
+              </button>
+              <button
+                onClick={() => setIsClaimsRegisterOpen(true)}
+                className="text-amber-400 hover:text-amber-300 transition font-semibold"
+              >
+                Claims Register (PRD-17)
+              </button>
+              <button
+                onClick={onOpenPricingModal}
+                className="hover:text-stone-200 transition"
+              >
+                Plans &amp; Pricing
+              </button>
+              <button
+                onClick={onOpenReportModal}
+                className="hover:text-stone-200 transition"
+              >
+                Field Evidence Reports
+              </button>
+              <a href="mailto:support@terrasoil.ag" className="hover:text-emerald-400 transition">
+                support@terrasoil.ag
+              </a>
+            </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <button
-              onClick={onStartNow}
-              className="text-emerald-400 hover:underline font-semibold"
-            >
-              Launch Portal
-            </button>
-            <button
-              onClick={onOpenPricingModal}
-              className="text-stone-400 hover:text-stone-200"
-            >
-              Pricing
-            </button>
-            <button
-              onClick={onOpenReportModal}
-              className="text-stone-400 hover:text-stone-200"
-            >
-              Field Verification Reports
-            </button>
-            {onOpenTerraSoilPdf && (
-              <button
-                onClick={onOpenTerraSoilPdf}
-                className="text-stone-400 hover:text-stone-200"
-              >
-                AI PDF Guide
-              </button>
-            )}
-            <a href="mailto:support@terrasoil.ag" className="hover:text-stone-300">
-              support@terrasoil.ag
-            </a>
+          <div className="flex flex-wrap items-center justify-between gap-4 text-[11px] text-stone-600">
+            <p>
+              &copy; {new Date().getFullYear()} TerraSoil Systems Inc. All rights reserved. Soil carbon calculations are empirical modeled estimates based on published IPCC Tier 1 and USDA COMET-Farm methodologies.
+            </p>
+            <p className="flex items-center gap-2">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70" />
+              <span>Grower Data Ownership Covenant Enforced</span>
+            </p>
           </div>
         </div>
       </footer>
+
+      {/* Embedded Legal & Data Rights Modal */}
+      <LegalModal
+        isOpen={isLegalModalOpen}
+        onClose={() => setIsLegalModalOpen(false)}
+        initialTab={legalModalTab}
+      />
+
+      {/* PRD-17 Public Scientific Claims Register Modal */}
+      <ClaimsRegisterModal
+        isOpen={isClaimsRegisterOpen}
+        onClose={() => setIsClaimsRegisterOpen(false)}
+      />
     </div>
   );
 };

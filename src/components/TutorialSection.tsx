@@ -36,7 +36,8 @@ import {
   FolderKanban,
   Clock,
   FileSpreadsheet,
-  Award
+  Award,
+  Rocket
 } from 'lucide-react';
 
 interface TutorialSectionProps {
@@ -44,6 +45,8 @@ interface TutorialSectionProps {
   onOpenReportModal: () => void;
   onToggleAIAssistant: () => void;
   onOpenTerraSoilPdf?: () => void;
+  onOpenAlphaLaunchModal?: () => void;
+  onOpenCreateFarmModal?: () => void;
 }
 
 export const TutorialSection: React.FC<TutorialSectionProps> = ({
@@ -51,6 +54,8 @@ export const TutorialSection: React.FC<TutorialSectionProps> = ({
   onOpenReportModal,
   onToggleAIAssistant,
   onOpenTerraSoilPdf,
+  onOpenAlphaLaunchModal,
+  onOpenCreateFarmModal,
 }) => {
   // Top-level category tab: 'platform' (Category A) or 'carbon_science' (Category B)
   const [activeCategory, setActiveCategory] = useState<'platform' | 'carbon_science'>('platform');
@@ -216,6 +221,7 @@ export const TutorialSection: React.FC<TutorialSectionProps> = ({
                 { id: 'auth_security', name: '9. Auth, Roles & Security (PRD)', icon: Lock, color: 'text-amber-400' },
                 { id: 'workspace_hub', name: '10. Personal Command Center', icon: FolderKanban, color: 'text-emerald-400' },
                 { id: 'org_permissions_audit', name: '11. Org, Roles & Audit (PRD-12)', icon: Building2, color: 'text-emerald-400' },
+                { id: 'alpha_launch_readiness', name: '12. Alpha Launch Journey (PRD-18)', icon: Rocket, color: 'text-emerald-400' },
               ].map((mod) => {
                 const Icon = mod.icon;
                 const isActive = activePlatformModule === mod.id;
@@ -826,6 +832,85 @@ export const TutorialSection: React.FC<TutorialSectionProps> = ({
                       </h4>
                       <p className="text-stone-400 leading-relaxed">
                         Answers &quot;what happened to the data?&quot; with an immutable audit log detailing user, previous/new values, justification, supporting document attachment, IP address, and SHA-256 Merkle root.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* MODULE 12: ALPHA LAUNCH READINESS & 5-STAGE CORE JOURNEY (PRD-18) */}
+              {activePlatformModule === 'alpha_launch_readiness' && (
+                <div className="space-y-4">
+                  <div className="border-b border-stone-800 pb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-bold text-white flex items-center gap-2">
+                        <Rocket className="w-5 h-5 text-emerald-400" />
+                        Alpha Launch Readiness &amp; 5-Stage Core Journey (PRD-18)
+                      </h3>
+                      <p className="text-xs text-stone-400 mt-1">
+                        Transforms the review workflow table into eleven acceptance criteria covering the complete &quot;create farm &rarr; add field &rarr; record practice &rarr; inspect data &rarr; export report&quot; pipeline.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {onOpenAlphaLaunchModal && (
+                        <button
+                          onClick={onOpenAlphaLaunchModal}
+                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition"
+                        >
+                          <Rocket className="w-3.5 h-3.5" />
+                          <span>Open Launch Verifier</span>
+                        </button>
+                      )}
+                      {onOpenCreateFarmModal && (
+                        <button
+                          onClick={onOpenCreateFarmModal}
+                          className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-emerald-400 border border-emerald-800/80 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
+                        >
+                          <span>Step 1: Create Farm</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 space-y-2">
+                      <h4 className="font-bold text-emerald-400 flex items-center gap-1.5">
+                        <Tractor className="w-4 h-4" />
+                        The 5-Stage Core Journey (AC-01 through AC-08)
+                      </h4>
+                      <p className="text-stone-400 leading-relaxed">
+                        Deterministic flow from entity establishment to verified dossier: <strong>Create Farm &rarr; Add Field &rarr; Record Practice &rarr; Inspect Telemetry &rarr; Export Evidence Report</strong>.
+                      </p>
+                    </div>
+
+                    <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 space-y-2">
+                      <h4 className="font-bold text-cyan-400 flex items-center gap-1.5">
+                        <Scale className="w-4 h-4" />
+                        3-State Assurance &amp; Claims Register (PRD-17 / AC-07)
+                      </h4>
+                      <p className="text-stone-400 leading-relaxed">
+                        All quantitative metrics, satellite intervals, and carbon estimates carry explicit <code>[Observed]</code>, <code>[Modeled &plusmn;22%]</code>, or <code>[Independently Verified]</code> badges directly adjacent to the numbers.
+                      </p>
+                    </div>
+
+                    <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 space-y-2">
+                      <h4 className="font-bold text-amber-400 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4" />
+                        7-Point Launch Gate: GO Status (AC-10)
+                      </h4>
+                      <p className="text-stone-400 leading-relaxed">
+                        Evaluates Claims Wording, 100% Farmer Data Sovereignty, Journey Completeness, Report Dossier Cryptography, PWA Offline, Factor Lineage, and Performance. 100% cleared for Alpha.
+                      </p>
+                    </div>
+
+                    <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 space-y-2">
+                      <h4 className="font-bold text-purple-400 flex items-center gap-1.5">
+                        <Layers className="w-4 h-4" />
+                        Phased Deployment Strategy (AC-11)
+                      </h4>
+                      <p className="text-stone-400 leading-relaxed">
+                        Controlled rollout ladder: <strong>Phase 1 Alpha Pilot</strong> (25 commercial partner farms) &rarr; <strong>Phase 2 Beta Advisory</strong> (150 consultants, 500 farms) &rarr; <strong>Phase 3 General Availability</strong> (Scope 3 registry sync).
                       </p>
                     </div>
                   </div>
